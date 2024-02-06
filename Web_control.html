@@ -1,0 +1,79 @@
+<!-- HTML页面内容，包括按钮和JavaScript代码 -->
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Remote control Wifi控制</title>
+</head>
+<body>
+  <div>
+    <h1>Remote control Wifi控制</h1>
+    <h5>您已开启Remote control的Wifi控制功能，可通过该页面进行遥控。</h5>
+    <hr />
+  </div>
+
+  <div>
+    <h4>可使用的功能按键</h4>
+  </div> 
+
+  <!-- 添加按钮时，请按照下面的格式添加注释和按钮代码 -->
+  <!--
+  <div>
+    <button type="button" style="height:40px;width:100px;" onclick="sendCommand(1)">Button 1</button>
+    <button type="button" style="height:40px;width:100px;" onclick="sendCommand(2)">Button 2</button>
+    ...
+  </div>
+  -->
+
+    <div>
+        <table>
+            <tr>
+                <td></td>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(1)"> Up </button></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(2)"> Left </button></td>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(3)"> Down </button></td>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(4)"> Right </button></td>
+            </tr>
+        </table>
+    </div>
+    <br>
+
+    <div>
+        <table>
+            <tr>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(5)"> V- </button></td>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(6)"> V+ </button></td>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(7)"> Pause/Play </button></td>
+            </tr>
+        </table>
+    </div>
+    <br>
+
+    <div>
+        <table>
+            <tr>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(8)"> Win </button></td>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(9)"> Alt+Tab </button></td>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(10)"> Alt+F4 </button></td>
+                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(11)"> Enter </button></td>
+            </tr>
+        </table>
+    </div>
+    <br>
+
+    <div>
+        <h6>*以上功能按键仅在同时满足蓝牙已连接和远程控制未被锁定时可用。</h6>
+    </div> 
+</body>
+
+<script>
+  // 按下按钮会运行这个JS函数
+  function sendCommand(buttonNumber) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/sendCommand?button=" + buttonNumber, true);
+    xhr.send();
+  }
+</script>
