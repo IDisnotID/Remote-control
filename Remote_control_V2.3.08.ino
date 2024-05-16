@@ -16,7 +16,7 @@ unsigned long Total_Key = 0;  // 总按键计数
 const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 
-char version[] = "2.3.08";          //*************************版本信息*************************
+char version[] = "2.3.1";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -26,9 +26,9 @@ int LED = 1, Connect_Check = 2, KeyA = 485, KeyB = 485, KeyC = 485, KeyD = 485, 
     Op_Sp1 = 1, Op_Sp2 = 1, Op_Sp6 = 1, sP = 0, ExitS_CK = 0, LED_Ban = 0, Key_Speed = 2, Key_Count = 0,
     Ke_Dc = 0, Kp_inde = 0, KC_Ban = 0, Kfls = 0, Op_Sp8 = 1, Op_Sp9 = 1, sP_Op = 0, KC_WifiC = 0,
     Op_Sp15, Settings_Opened = 0, Sp15_P, Op_Sp18 = 1, State_LED3 = 0, delay_display_wifi_password = 0,
-    Morse_input_count = 0;
+    Morse_input_count = 0, Op_Sp19 = 1;
 char wifi_Password[PASSWORD_LENGTH + 1];
-bool buttonGPressed = false, tag_clear = false, error_display = false;
+bool buttonGPressed = false, tag_clear = false, error_display = false, show_L5 = true;
 
 // 定义全局变量存储 IP 地址和字符串表示
 IPAddress ipAddress;
@@ -134,10 +134,10 @@ const char index_html[] PROGMEM = R"rawliteral(
 // 定义摩尔斯代码
 const char* morseCode[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", 
                            "-.--", "--..", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----.", "-----", ".-.-.-", "--..--", "---...", "-.-.-.", "..--..", "-...-", ".----.", 
-                           "-..-.", "-.-.--", "-....-", "..--.-", ".-..-.", "-.--.", "-.--.-", "...-..-", ".--.--", ".--.-.", "--.-..", "-..--", "...--."};
+                           "-..-.", "-.-.--", "-....-", "..--.-", ".-..-.", "-.--.", "-.--.-", "...-..-", ".--.--", ".--.-.", "--.-..", "-..--", "...--.", ".-..-"};
 
 // 定义字符集合
-const char* letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.,:;?='/!-_\"()$&@+ a"; // 字母、数字和一些常见符号，a:win+space
+const char* letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.,:;?='/!-_\"()$&@+ ab"; // 字母、数字和一些常见符号，a:win+space，b:shift+del
 //****************************************************************L5输入定义结束****************************************************************
 
 //**********************************************LCD函数**********************************************
@@ -207,7 +207,8 @@ void Custom_characters(int Type) {       //自定义字符
   byte CG_dat13[] = {0x0,0x1,0x2,0x2,0x4,0x14,0x8,0x0};  //对勾
   byte CG_dat14[] = {0x4,0x8,0x1f,0x8,0x4,0x11,0x1f,0x0};  //退出
   byte CG_dat15[] = {0x0,0x0,0x0,0x0,0x0,0x11,0x1f,0x0};  //空格
-  byte CG_dat16[] = {0x4,0x2,0x1f,0x0,0x1f,0x8,0x4,0x0};  //输入法切换
+  byte CG_dat16[] = {0x4,0x2,0x1f,0x0,0x1f,0x8,0x4,0x0};  //中英文切换（弃用）
+  byte CG_dat17[] = {0xa,0x4,0xa,0x15,0x11,0x11,0x1f,0x0};  //删除
   
   switch(Type){       //类型切换
   case 0:
@@ -230,7 +231,8 @@ void Custom_characters(int Type) {       //自定义字符
     break;
   case 2:     //mode5专用
     LCD_Makechar(0, CG_dat15);     //输出0x0-0x1
-    LCD_Makechar(1, CG_dat16);
+    LCD_Makechar(1, CG_dat3);
+    LCD_Makechar(2, CG_dat17);
   }
 }
 //******************************LCD自定义字符区结束******************************
@@ -645,7 +647,7 @@ void Page_settings() {        //“设置”界面******************************
   Custom_characters(1);      //自定义字符集1
   //*********启动屏结束*********
   Sb_Set = 0;
-  int sO1_Max = 7, sO2_Max = 5, sO9_Max = 3;     //最多选项
+  int sO1_Max = 8, sO2_Max = 5, sO9_Max = 3;     //最多选项
   while(1) {
     if(Sb_Set == 0){
       if(sP_Op == 0){     //当打开动态刷新的页面时不自动清屏
@@ -655,47 +657,52 @@ void Page_settings() {        //“设置”界面******************************
       switch(sP){     //********************************************“设置”页面UI********************************************
       case 0:
         LCD_Write(Op_Sp1 + 0x30, 1);      //设置选项序号1
+        LCD_Print(".");
         switch(Op_Sp1){
         case 1:
-          LCD_Print(".Wifi_C");
+          LCD_Print("Wifi_C");
           break;  
         case 2:
-          LCD_Print(".Key_Sp");
+          LCD_Print("Key_Sp");
           break;
         case 3:
-          LCD_Print(".K_Coun");
+          LCD_Print("K_Coun");
           break;
         case 4:
-          LCD_Print(".LED_Op");
+          LCD_Print("LED_Op");
           break;
         case 5:
-          LCD_Print(".Re_str");
-          break;
+          LCD_Print("Show_5");
+          break;  
         case 6:
-          LCD_Print(".Reset");
+          LCD_Print("Re_str");
           break;
         case 7:
-          LCD_Print(".About");
+          LCD_Print("Reset");
+          break;
+        case 8:
+          LCD_Print("About");
         }
         Tip_Set();
         break;
       case 1:
         LCD_Write(Op_Sp2 + 0x30, 1);      //设置选项序号2
+        LCD_Print(".");
         switch(Op_Sp2){
         case 1:
-          LCD_Print(".Name");
+          LCD_Print("Name");
           break;
         case 2:
-          LCD_Print(".Ver");
+          LCD_Print("Ver");
           break;
         case 3:
-          LCD_Print(".BLE_Ad");
+          LCD_Print("BLE_Ad");
           break;
         case 4:
-          LCD_Print(".I_Info");
+          LCD_Print("I_Info");
           break;
         case 5:
-          LCD_Print(".Device");
+          LCD_Print("Device");
         }
         Tip_Set();
         break;
@@ -798,15 +805,16 @@ void Page_settings() {        //“设置”界面******************************
         break;
       case 9:       //设备页
         LCD_Write(Op_Sp9 + 0x30, 1);      //设置选项序号9
+        LCD_Print(".");
         switch(Op_Sp9){
         case 1:
-          LCD_Print(".TKey_C");
+          LCD_Print("TKey_C");
           break;
         case 2:
-          LCD_Print(".DRun_T");
+          LCD_Print("DRun_T");
           break;
         case 3:
-          LCD_Print(".C_Temp");
+          LCD_Print("C_Temp");
         }
         Tip_Set();
         break;
@@ -986,6 +994,32 @@ void Page_settings() {        //“设置”界面******************************
           LCD_SetCursor(2, 7);
         }
         LCD_Print("<<");
+        break;
+      case 19:      //显示L5设置
+        if(show_L5){      //显示L5未禁用
+          LCD_Write(0x6, 1);
+          LCD_SetCursor(2, 1);
+          LCD_Write(0x7, 1);
+          Change_LED3(1);
+        }else{
+          LCD_Write(0x7, 1);
+          LCD_SetCursor(2, 1);
+          LCD_Write(0x6, 1);
+          Change_LED3(0);
+        }
+        LCD_SetCursor(1, 2);
+        LCD_Print("On");
+        LCD_SetCursor(2, 2);
+        LCD_Print("Off");
+
+        switch(Op_Sp19){
+        case 1:
+          LCD_SetCursor(1, 7);
+          break;
+        case 2:
+          LCD_SetCursor(2, 7);
+        }
+        LCD_Print("<<");
       }
 
       if(sP_Op == 0){     //当打开动态刷新的页面时不自动还原
@@ -1060,6 +1094,13 @@ void Page_settings() {        //“设置”界面******************************
         }else{
           Op_Sp18 = Op_Sp18 - 1;
         }
+        break;
+      case 19:
+        if(Op_Sp19 == 1){
+          Op_Sp19 = 2;
+        }else{
+          Op_Sp19 = Op_Sp19 - 1;
+        }
       }
       Sb_Set = 0;
 
@@ -1129,6 +1170,12 @@ void Page_settings() {        //“设置”界面******************************
           Op_Sp18 = 1;
         }else{
           Op_Sp18 = Op_Sp18 + 1;
+        }
+      case 19:
+        if(Op_Sp19 == 2){
+          Op_Sp19 = 1;
+        }else{
+          Op_Sp19 = Op_Sp19 + 1;
         }
       }
       Sb_Set = 0;
@@ -1210,6 +1257,11 @@ void Page_settings() {        //“设置”界面******************************
         case 18:
           sP = 15;
           Op_Sp18 = 1;
+          break;
+        case 19:
+          sP = 0;
+          Op_Sp19 = 1;
+          Change_LED3(0);
         }
         Sb_Set = 0;
       }
@@ -1245,12 +1297,15 @@ void Page_settings() {        //“设置”界面******************************
           sP = 6;
           break;
         case 5:
-          sP = 5;
+          sP = 19;
           break;
         case 6:
-          sP = 13;
+          sP = 5;
           break;
         case 7:
+          sP = 13;
+          break;
+        case 8:
           sP = 1;
         }
         break;
@@ -1300,13 +1355,13 @@ void Page_settings() {        //“设置”界面******************************
         switch(Op_Sp8){
         case 1:
           KC_Ban = 0;
-          Serial.println("Key_Count was unbaned");
+          Serial.println("Key_Count was enable");
           break;
         case 2:    
           Key_Count = 0;      //键盘计数禁用
           Kp_inde = 0;
           KC_Ban = 1;
-          Serial.println("Key_Count was baned");
+          Serial.println("Key_Count was disable");
         }
         break;
       case 9:
@@ -1363,6 +1418,20 @@ void Page_settings() {        //“设置”界面******************************
         case 2:    
           sP = 16;
         }
+        break;
+      case 19:
+        switch(Op_Sp19){
+        case 1:
+          show_L5 = true;
+          Serial.println("Show_L5 was enable");
+          break;
+        case 2:    
+          show_L5 = false;      //显示L5禁用
+          if(Mode == 5){
+            Mode = 1;
+          }
+          Serial.println("Show_L5 was disable");
+        }
       }
       Sb_Set = 0;
 
@@ -1387,12 +1456,15 @@ void sendInputBuffer() {      //摩斯密码解析发送
         String outputString;
         lastinputBuffer = letters[i];
         if(letters[i] == ' '){      //特殊字符处理  space
-          bleKeyboard.press(' ');
+          bleKeyboard.press(' ');    
           outputString = "(space)"; 
-        }else if (letters[i] == 'a'){      //space+win
-          bleKeyboard.press(KEY_LEFT_GUI);
-          bleKeyboard.press(' ');
-          outputString = "(win+space)"; 
+        }else if (letters[i] == 'a'){      //shift
+          bleKeyboard.press(KEY_LEFT_SHIFT);
+          outputString = "(shift)"; 
+        }else if (letters[i] == 'b'){      //shift+del
+          bleKeyboard.press(KEY_LEFT_SHIFT);
+          bleKeyboard.press(KEY_DELETE);
+          outputString = "(shift+del)"; 
         }else{
           bleKeyboard.press(letters[i]);      //蓝牙打印字符
           outputString = letters[i];
@@ -1555,6 +1627,8 @@ void loop() {
               LCD_Write(0x00, 1);
           } else if(strcmp(lastinputBuffer.c_str(), "a") == 0){ // 比较字符串和字符'a'
               LCD_Write(0x01, 1);
+          } else if(strcmp(lastinputBuffer.c_str(), "b") == 0){ // 比较字符串和字符'b'
+              LCD_Write(0x02, 1);
           } else {
               LCD_Print(lastinputBuffer.c_str());
           }
@@ -1616,20 +1690,36 @@ void loop() {
         Serial.print("M");
         Serial.print(Mode);
         Serial.println(" Key Mode");
-        if(Mode < 5){
+
+        int ModeNum, ModeMax = 5;     //Mode切换
+        if(show_L5){
+          ModeNum = ModeMax;
+        }else{
+          ModeNum = ModeMax - 1;
+        }
+
+        if(Mode < ModeNum){
           Mode = Mode + 1;
         }else{
           Mode = 1;
         }
 
-        switch(Mode){
-        case 5:
-          LCD_Clear();
-          Custom_characters(2);      //自定义字符集2
-          break;
-        case 1:
-          LCD_Clear();
-          Custom_characters(0);      //自定义字符集0
+        if(show_L5){    //如果L5启动
+          switch(Mode){
+          case 5:
+            LCD_Clear();
+            LCD_Print("L5");
+            LCD_SetCursor(2, 1);
+            LCD_Print("Loading");
+            Custom_characters(2);      //自定义字符集2
+            break;
+          case 1:
+            LCD_Clear();
+            LCD_Print("L5");
+            LCD_SetCursor(2, 1);
+            LCD_Print("Exiting");
+            Custom_characters(0);      //自定义字符集0
+          }
         }
         Serial.print("Mode ");
         Serial.println(Mode);
