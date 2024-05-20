@@ -16,7 +16,7 @@ unsigned long Total_Key = 0;  // 总按键计数
 const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 
-char version[] = "2.3.14";          //*************************版本信息*************************
+char version[] = "2.3.17";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -134,10 +134,10 @@ const char index_html[] PROGMEM = R"rawliteral(
 // 定义摩尔斯代码
 const char* morseCode[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", 
                            "-.--", "--..", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----.", "-----", ".-.-.-", "--..--", "---...", "-.-.-.", "..--..", "-...-", ".----.", 
-                           "-..-.", "-.-.--", "-....-", "..--.-", ".-..-.", "-.--.", "-.--.-", "...-..-", ".--.--", ".--.-.", "--.-..", "-..--", "...--.", ".-..-", "..-.--"};
+                           "-..-.", "-.-.--", "-....-", "..--.-", ".-..-.", "-.--.", "-.--.-", "...-..-", ".--.--", ".--.-.", "--.-..", "-..--", "...--.", ".-..-", "..-.--", "-.---", "---.--"};
 
 // 定义字符集合
-const char* letters = "abcdefghijklmnopqrstuvwxyz1234567890.,:;?='/!-_\"()$&@+ ABC"; // 字母、数字和一些常见符号，A:win+space，B:shift+del，C:backspace
+const char* letters = "abcdefghijklmnopqrstuvwxyz1234567890.,:;?='/!-_\"()$&@+ ABCDE"; // 字母、数字和一些常见符号，A:win+space，B:shift+del，C:backspace，D:Esc，E:Tab
 //****************************************************************L5输入定义结束****************************************************************
 
 //**********************************************LCD函数**********************************************
@@ -207,9 +207,11 @@ void Custom_characters(int Type) {       //自定义字符
   byte CG_dat13[] = {0x0,0x1,0x2,0x2,0x4,0x14,0x8,0x0};  //对勾
   byte CG_dat14[] = {0x4,0x8,0x1f,0x8,0x4,0x11,0x1f,0x0};  //退出
   byte CG_dat15[] = {0x0,0x0,0x0,0x0,0x0,0x11,0x1f,0x0};  //空格
-  byte CG_dat16[] = {0x4,0x2,0x1f,0x0,0x1f,0x8,0x4,0x0};  //中英文切换（弃用）
+  byte CG_dat16[] = {0x1b,0x12,0x1b,0x11,0x1b,0xe,0x8,0xe};  //Esc键
   byte CG_dat17[] = {0xa,0x4,0xa,0x15,0x11,0x11,0x1f,0x0};  //删除文件
   byte CG_dat18[] = {0x1,0x5,0x9,0x1f,0x9,0x5,0x1,0x0};  //退格键
+  byte CG_dat19[] = {0x0,0x8,0x1f,0x8,0x2,0x1f,0x2,0x0};  //Tab键
+  
   
   switch(Type){       //类型切换
   case 0:
@@ -231,10 +233,12 @@ void Custom_characters(int Type) {       //自定义字符
     LCD_Makechar(5, CG_dat14);
     break;
   case 2:     //mode5专用
-    LCD_Makechar(0, CG_dat15);     //输出0x0-0x3
+    LCD_Makechar(0, CG_dat15);     //输出0x0-0x5
     LCD_Makechar(1, CG_dat3);
     LCD_Makechar(2, CG_dat17);
     LCD_Makechar(3, CG_dat18);
+    LCD_Makechar(4, CG_dat16);
+    LCD_Makechar(5, CG_dat19);
   }
 }
 //******************************LCD自定义字符区结束******************************
@@ -1471,6 +1475,12 @@ void sendInputBuffer() {      //摩斯密码解析发送
         }else if (letters[i] == 'C'){      //backspace
           bleKeyboard.press(KEY_BACKSPACE);
           outputString = "(backspace)"; 
+        }else if (letters[i] == 'D'){      //Esc
+          bleKeyboard.press(KEY_ESC);
+          outputString = "(Esc)"; 
+        }else if (letters[i] == 'E'){      //Tab
+          bleKeyboard.press(KEY_TAB);
+          outputString = "(Tab)"; 
         }else{
           bleKeyboard.press(letters[i]);      //蓝牙打印字符
           outputString = letters[i];
@@ -1490,7 +1500,7 @@ void sendInputBuffer() {      //摩斯密码解析发送
     if (!matched) {
       error_display = true;
       tag_clear = true;
-      Serial.println("Error"); // 没有匹配的字符，打印错误信息
+      Serial.println("Code error"); // 没有匹配的字符，打印错误信息
       FlashLED_3();   //闪灯报错
     }
     inputBuffer = ""; // 清空输入缓冲区
@@ -1637,6 +1647,10 @@ void loop() {
               LCD_Write(0x2, 1);
           } else if(strcmp(lastinputBuffer.c_str(), "C") == 0){ // 比较字符串和字符'C'
               LCD_Write(0x3, 1);
+          } else if(strcmp(lastinputBuffer.c_str(), "D") == 0){ // 比较字符串和字符'D'
+              LCD_Write(0x4, 1);
+          } else if(strcmp(lastinputBuffer.c_str(), "E") == 0){ // 比较字符串和字符'E'
+              LCD_Write(0x5, 1);
           } else {
               LCD_Print(lastinputBuffer.c_str());
           }
@@ -2296,7 +2310,9 @@ void loop() {
             inputBuffer += "."; // 将“.”添加到输入缓冲区
             Serial.print(".");
             Morse_input_count += 1;    //输入计数
+            if(Morse_input_count <= 8){
             LCD_Print(".");
+            }
             delay(200); // 延迟一段时间以避免重复检测到按下
           }
         }
@@ -2316,16 +2332,19 @@ void loop() {
             inputBuffer += "-"; // 将“-”添加到输入缓冲区
             Serial.print("-");
             Morse_input_count += 1;    //输入计数
+            if(Morse_input_count <= 8){
             LCD_Print("-");
+            }
             delay(200); // 延迟一段时间以避免重复检测到按下
           }
         }
       }else{
         inputBuffer = inputBuffer.substring(0, inputBuffer.length() - 1);      // 删除输入缓冲区的最后一个字符
+
         Morse_input_count = Morse_input_count - 1;
         FlashLED_3();   //闪灯报错
         Serial.println("");   //换行
-        Serial.println("Word limit");
+        Serial.println("Code limit");
       }
 
       // 检测按钮G的状态
@@ -2360,7 +2379,7 @@ void loop() {
     if(bleKeyboard.isConnected() == false && Connect_Check != 1 && Connect_Check != 2){
       LED1_2_Countrl(1, 0);    //BLE通信指示灯（1）灭
       Serial.println("");   //换行
-      Serial.println("Offline");
+      Serial.println("BLE offline");
       FlashLED_3();
       inputBuffer = ""; // 清空输入缓冲区
       Morse_input_count = 0;
@@ -2369,7 +2388,7 @@ void loop() {
       Key_Count = 0;      //键盘计数清除
       Kp_inde = 0;
       BleKeyboard bleKeyboard("Remote control", "ID_drives", 100);
-      Serial.println("BLE Pairing...");
+      Serial.println("BLE pairing...");
       FlashLED_3();
 
       LCD_Clear();          //LCD提示掉线
