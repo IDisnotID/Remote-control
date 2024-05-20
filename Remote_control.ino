@@ -2310,7 +2310,7 @@ void loop() {
             inputBuffer += "."; // 将“.”添加到输入缓冲区
             Serial.print(".");
             Morse_input_count += 1;    //输入计数
-            if(Morse_input_count <= 10){
+            if(Morse_input_count <= 8){
             LCD_Print(".");
             }
             delay(200); // 延迟一段时间以避免重复检测到按下
@@ -2332,7 +2332,7 @@ void loop() {
             inputBuffer += "-"; // 将“-”添加到输入缓冲区
             Serial.print("-");
             Morse_input_count += 1;    //输入计数
-            if(Morse_input_count <= 10){
+            if(Morse_input_count <= 8){
             LCD_Print("-");
             }
             delay(200); // 延迟一段时间以避免重复检测到按下
