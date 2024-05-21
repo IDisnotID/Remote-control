@@ -16,7 +16,7 @@ unsigned long Total_Key = 0;  // 总按键计数
 const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 
-char version[] = "2.3.17";          //*************************版本信息*************************
+char version[] = "2.3.2";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -26,9 +26,9 @@ int LED = 1, Connect_Check = 2, KeyA = 485, KeyB = 485, KeyC = 485, KeyD = 485, 
     Op_Sp1 = 1, Op_Sp2 = 1, Op_Sp6 = 1, sP = 0, ExitS_CK = 0, LED_Ban = 0, Key_Speed = 2, Key_Count = 0,
     Ke_Dc = 0, Kp_inde = 0, KC_Ban = 0, Kfls = 0, Op_Sp8 = 1, Op_Sp9 = 1, sP_Op = 0, KC_WifiC = 0,
     Op_Sp15, Settings_Opened = 0, Sp15_P, Op_Sp18 = 1, State_LED3 = 0, delay_display_wifi_password = 0,
-    Morse_input_count = 0, Op_Sp19 = 1;
+    input_count_L5 = 0, Op_Sp19 = 1, Op_Sp20 = 1;
 char wifi_Password[PASSWORD_LENGTH + 1];
-bool buttonGPressed = false, tag_clear = false, error_display = false, show_L5 = true;
+bool buttonGPressed = false, tag_clear = false, error_display = false, show_L5 = true, LockBottom_L5 = false, fast_L5 = false, IBtran = false, FastIned_L5 = false;
 
 // 定义全局变量存储 IP 地址和字符串表示
 IPAddress ipAddress;
@@ -134,10 +134,10 @@ const char index_html[] PROGMEM = R"rawliteral(
 // 定义摩尔斯代码
 const char* morseCode[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", 
                            "-.--", "--..", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----.", "-----", ".-.-.-", "--..--", "---...", "-.-.-.", "..--..", "-...-", ".----.", 
-                           "-..-.", "-.-.--", "-....-", "..--.-", ".-..-.", "-.--.", "-.--.-", "...-..-", ".--.--", ".--.-.", "--.-..", "-..--", "...--.", ".-..-", "..-.--", "-.---", "---.--"};
+                           "-..-.", "-.-.--", "-....-", "..--.-", ".-..-.", "-.--.", "-.--.-", "...-..-", ".--.--", ".--.-.", "--.-..", ".--..", "-..--", "...--.", ".-..-", "..-.--", "-.---", "---.--"};
 
 // 定义字符集合
-const char* letters = "abcdefghijklmnopqrstuvwxyz1234567890.,:;?='/!-_\"()$&@+ ABCDE"; // 字母、数字和一些常见符号，A:win+space，B:shift+del，C:backspace，D:Esc，E:Tab
+const char* letters = "abcdefghijklmnopqrstuvwxyz1234567890.,:;?='/!-_\"()$&@+* ABCDE"; // 字母、数字和一些常见符号，A:win+space，B:shift+del，C:backspace，D:Esc，E:Tab
 //****************************************************************L5输入定义结束****************************************************************
 
 //**********************************************LCD函数**********************************************
@@ -200,8 +200,8 @@ void Custom_characters(int Type) {       //自定义字符
   byte CG_dat6[] = {0x0,0x1f,0x1,0x1d,0x5,0x15,0x0,0x0};  //wifi远程遥控
   byte CG_dat7[] = {0x0,0xe,0x1f,0x1f,0x1f,0x1f,0xe,0x0};  //选择
   byte CG_dat8[] = {0x0,0xe,0x11,0x11,0x11,0x11,0xe,0x0};  //未选择
-  byte CG_dat9[] = {0x0,0x0,0x0,0x0,0x0,0x0,0x18,0x18};  //最下面一个点
-  byte CG_dat10[] = {0x0,0x0,0x0,0x0,0x0,0x0,0x1b,0x1b};  //最下面两个点
+  byte CG_dat9[] = {0x0,0x0,0x0,0x0,0x0,0x0,0x18,0x18};  //一个点（页面提示）
+  byte CG_dat10[] = {0x0,0x0,0x0,0x0,0x0,0x0,0x1b,0x1b};  //两个点（页面提示）
   byte CG_dat11[] = {0x0,0x0,0x1f,0x0,0x15,0x0,0x0,0x0};  //直流
   byte CG_dat12[] = {0x0,0x11,0xa,0x4,0xa,0x11,0x0,0x0};  //错号
   byte CG_dat13[] = {0x0,0x1,0x2,0x2,0x4,0x14,0x8,0x0};  //对勾
@@ -211,34 +211,36 @@ void Custom_characters(int Type) {       //自定义字符
   byte CG_dat17[] = {0xa,0x4,0xa,0x15,0x11,0x11,0x1f,0x0};  //删除文件
   byte CG_dat18[] = {0x1,0x5,0x9,0x1f,0x9,0x5,0x1,0x0};  //退格键
   byte CG_dat19[] = {0x0,0x8,0x1f,0x8,0x2,0x1f,0x2,0x0};  //Tab键
+  byte CG_dat20[] = {0x2,0x4,0xc,0x1f,0x6,0x4,0x8,0x0};  //快速输入模式标志（闪电）
   
   
   switch(Type){       //类型切换
   case 0:
-    LCD_Makechar(0, CG_dat1);     //输出0x0-0x7
+    LCD_Makechar(0, CG_dat1);     //输出0x0-0x5
     LCD_Makechar(1, CG_dat2);
     LCD_Makechar(2, CG_dat3);
     LCD_Makechar(3, CG_dat4);
     LCD_Makechar(4, CG_dat5);
     LCD_Makechar(5, CG_dat6);
-    LCD_Makechar(6, CG_dat7);
-    LCD_Makechar(7, CG_dat8);
     break;
   case 1:
-    LCD_Makechar(0, CG_dat9);     //输出0x0-0x5
+    LCD_Makechar(0, CG_dat9);     //输出0x0-0x7
     LCD_Makechar(1, CG_dat10);
     LCD_Makechar(2, CG_dat11);
     LCD_Makechar(3, CG_dat12);
     LCD_Makechar(4, CG_dat13);
     LCD_Makechar(5, CG_dat14);
+    LCD_Makechar(6, CG_dat7);
+    LCD_Makechar(7, CG_dat8);
     break;
   case 2:     //mode5专用
-    LCD_Makechar(0, CG_dat15);     //输出0x0-0x5
+    LCD_Makechar(0, CG_dat15);     //输出0x0-0x6
     LCD_Makechar(1, CG_dat3);
     LCD_Makechar(2, CG_dat17);
     LCD_Makechar(3, CG_dat18);
     LCD_Makechar(4, CG_dat16);
     LCD_Makechar(5, CG_dat19);
+    LCD_Makechar(6, CG_dat20);
   }
 }
 //******************************LCD自定义字符区结束******************************
@@ -653,7 +655,7 @@ void Page_settings() {        //“设置”界面******************************
   Custom_characters(1);      //自定义字符集1
   //*********启动屏结束*********
   Sb_Set = 0;
-  int sO1_Max = 8, sO2_Max = 5, sO9_Max = 3;     //最多选项
+  int sO1_Max = 9, sO2_Max = 5, sO9_Max = 3;     //最多选项
   while(1) {
     if(Sb_Set == 0){
       if(sP_Op == 0){     //当打开动态刷新的页面时不自动清屏
@@ -681,12 +683,15 @@ void Page_settings() {        //“设置”界面******************************
           LCD_Print("Show_5");
           break;  
         case 6:
+          LCD_Print("InMo_5");
+          break;  
+        case 7:
           LCD_Print("Reset");
           break;
-        case 7:
+        case 8:
           LCD_Print("Re_str");
           break;
-        case 8:
+        case 9:
           LCD_Print("About");
         }
         Tip_Set();
@@ -1026,6 +1031,30 @@ void Page_settings() {        //“设置”界面******************************
           LCD_SetCursor(2, 7);
         }
         LCD_Print("<<");
+        break;
+      case 20:      //L5输入模式
+        if(!(fast_L5)){      //L5普通输入模式
+          LCD_Write(0x6, 1);
+          LCD_SetCursor(2, 1);
+          LCD_Write(0x7, 1);
+        }else{
+          LCD_Write(0x7, 1);
+          LCD_SetCursor(2, 1);
+          LCD_Write(0x6, 1);
+        }
+        LCD_SetCursor(1, 2);
+        LCD_Print("Norm");
+        LCD_SetCursor(2, 2);
+        LCD_Print("Fast");
+
+        switch(Op_Sp20){
+        case 1:
+          LCD_SetCursor(1, 7);
+          break;
+        case 2:
+          LCD_SetCursor(2, 7);
+        }
+        LCD_Print("<<");
       }
 
       if(sP_Op == 0){     //当打开动态刷新的页面时不自动还原
@@ -1107,6 +1136,13 @@ void Page_settings() {        //“设置”界面******************************
         }else{
           Op_Sp19 = Op_Sp19 - 1;
         }
+        break;
+      case 20:
+        if(Op_Sp20 == 1){
+          Op_Sp20 = 2;
+        }else{
+          Op_Sp20 = Op_Sp20 - 1;
+        }
       }
       Sb_Set = 0;
 
@@ -1182,6 +1218,13 @@ void Page_settings() {        //“设置”界面******************************
           Op_Sp19 = 1;
         }else{
           Op_Sp19 = Op_Sp19 + 1;
+        }
+        break;
+      case 20:
+        if(Op_Sp20 == 2){
+          Op_Sp20 = 1;
+        }else{
+          Op_Sp20 = Op_Sp20 + 1;
         }
       }
       Sb_Set = 0;
@@ -1268,6 +1311,10 @@ void Page_settings() {        //“设置”界面******************************
           sP = 0;
           Op_Sp19 = 1;
           Change_LED3(0);
+          break;
+        case 20:
+          sP = 0;
+          Op_Sp20 = 1;
         }
         Sb_Set = 0;
       }
@@ -1306,12 +1353,15 @@ void Page_settings() {        //“设置”界面******************************
           sP = 19;
           break;
         case 6:
-          sP = 13;
+          sP = 20;
           break;
         case 7:
-          sP = 5;
+          sP = 13;
           break;
         case 8:
+          sP = 5;
+          break;
+        case 9:
           sP = 1;
         }
         break;
@@ -1390,6 +1440,7 @@ void Page_settings() {        //“设置”界面******************************
         LED_Ban = 0;       //设置LED为开
         Wifi_Control(0);          //wifi控制禁用
         show_L5 = true;          //显示L5
+        fast_L5 = false;          //关闭快速L5输入
         if(bleKeyboard.isConnected()){    //如果已连接
           LED1_2_Countrl(1, 1);    //BLE通信指示灯（1）亮
         }
@@ -1438,6 +1489,17 @@ void Page_settings() {        //“设置”界面******************************
             Mode = 1;
           }
           Serial.println("Show_L5 was disable");
+        }
+        break;
+      case 20:
+        switch(Op_Sp20){
+        case 1:
+          fast_L5 = false;
+          Serial.println("Fast_L5 was enable");
+          break;
+        case 2:    
+          fast_L5 = true;      //快速L5模式启动
+          Serial.println("Fast_L5 was disable");
         }
       }
       Sb_Set = 0;
@@ -1503,8 +1565,14 @@ void sendInputBuffer() {      //摩斯密码解析发送
       Serial.println("Code error"); // 没有匹配的字符，打印错误信息
       FlashLED_3();   //闪灯报错
     }
-    inputBuffer = ""; // 清空输入缓冲区
-    Morse_input_count = 0;
+    if(!fast_L5 || !matched){     //非快速输入模式或有错误
+      inputBuffer = ""; // 清空输入缓冲区
+      input_count_L5 = 0;
+      FastIned_L5 = false;
+    }else{
+      IBtran = true;
+      FastIned_L5 = true;     //本次输入L5发送过
+    }
   }else{      //空输入
     error_display = true;
     tag_clear = true;
@@ -1631,7 +1699,16 @@ void loop() {
           LCD_Print("(Error)");
           error_display = false;
         }else{
-          LCD_Print("(Code)");
+          if(IBtran){
+            LCD_Print(inputBuffer.c_str());
+            IBtran = false;
+          }else{
+            LCD_Print("(Code)");
+          }
+        }
+        if(fast_L5){      //快速输入模式标志显示
+          LCD_SetCursor(1, 4);
+          LCD_Write(0x6, 1);
         }
         LCD_SetCursor(1, 7);
         LCD_Print(">");
@@ -1729,11 +1806,14 @@ void loop() {
         if(show_L5){    //如果L5启动
           switch(Mode){
           case 5:
+            delay(300);
+
             LCD_Clear();
             LCD_Print("L5");
             LCD_SetCursor(2, 1);
             LCD_Print("Loading");
             Custom_characters(2);      //自定义字符集2
+            LockBottom_L5 = true;
             break;
           case 1:
             LCD_Clear();
@@ -1749,7 +1829,8 @@ void loop() {
         KeyMode = 300;        //特殊延时
         Fast_Key3 = 0;
         inputBuffer = ""; // 清空输入缓冲区
-        Morse_input_count = 0;
+        input_count_L5 = 0;
+        FastIned_L5 = false;
         Key_Count = 0;      //键盘计数清除
         Kp_inde = 0;
 
@@ -1764,7 +1845,8 @@ void loop() {
       delay(800);
       if((digitalRead(18) == 0) && (digitalRead(19) == 0)){       //再次检查
         inputBuffer = ""; // 清空输入缓冲区
-        Morse_input_count = 0;
+        input_count_L5 = 0;
+        FastIned_L5 = false;
         Page_settings();
         Sb_Set = 0;
       }
@@ -2294,87 +2376,104 @@ void loop() {
       }
 
     }else if(Mode == 5){          //*************************5*************************
-      if(Morse_input_count <= 8){     //输入限制8位数
-        // 检测按钮E的状态
-        if (digitalRead(19) == 0) {
-          // 按钮E被按下
-          delay(50); // 延迟一小段时间以防止抖动
-          if (digitalRead(19) == 0) {
-            if(tag_clear){    //清除标记
-              LCD_SetCursor(2,1);
-              LCD_Print("        ");
-              LCD_SetCursor(2,1);
-              tag_clear = false;
-            }
-
-            inputBuffer += "."; // 将“.”添加到输入缓冲区
-            Serial.print(".");
-            Morse_input_count += 1;    //输入计数
-            if(Morse_input_count <= 8){
-            LCD_Print(".");
-            }
-            delay(200); // 延迟一段时间以避免重复检测到按下
-          }
-        }
-
-        // 检测按钮F的状态
-        if (digitalRead(1) == 0) {
-          // 按钮F被按下
-          delay(50); // 延迟一小段时间以防止抖动
-          if (digitalRead(1) == 0) {
-            if(tag_clear){    //清除标记
-              LCD_SetCursor(2,1);
-              LCD_Print("        ");
-              LCD_SetCursor(2,1);
-              tag_clear = false;
-            }
-
-            inputBuffer += "-"; // 将“-”添加到输入缓冲区
-            Serial.print("-");
-            Morse_input_count += 1;    //输入计数
-            if(Morse_input_count <= 8){
-            LCD_Print("-");
-            }
-            delay(200); // 延迟一段时间以避免重复检测到按下
-          }
+      if(LockBottom_L5){    //切换的L5时锁定L5输入
+        if((digitalRead(19) == 1) && (digitalRead(1) == 1)){    //按键E和F都是松开状态
+          LockBottom_L5 = false;
         }
       }else{
-        inputBuffer = inputBuffer.substring(0, inputBuffer.length() - 1);      // 删除输入缓冲区的最后一个字符
+        if(input_count_L5 <= 8){     //输入限制8位数
+          // 检测按钮E的状态
+          if (digitalRead(19) == 0) {
+            // 按钮E被按下
+            delay(50); // 延迟一小段时间以防止抖动
+            if (digitalRead(19) == 0) {
+              if(tag_clear){    //清除标记
+                LCD_SetCursor(2,1);
+                LCD_Print("        ");
+                LCD_SetCursor(2,1);
+                tag_clear = false;
+              }
+              if(FastIned_L5){
+                input_count_L5 = 0;
+                FastIned_L5 = false;
+                // 清空输入缓冲区
+                inputBuffer = "";
+              }
 
-        Morse_input_count = Morse_input_count - 1;
-        FlashLED_3();   //闪灯报错
-        Serial.println("");   //换行
-        Serial.println("Code limit");
-      }
+              inputBuffer += "."; // 将“.”添加到输入缓冲区
+              Serial.print(".");
+              input_count_L5 += 1;    //输入计数
+              if(input_count_L5 <= 8){
+              LCD_Print(".");
+              }
+              delay(200); // 延迟一段时间以避免重复检测到按下
+            }
+          }
 
-      // 检测按钮G的状态
-      if(digitalRead(0) == 0 && !buttonGPressed){
-        buttonGPressStartTime = millis();
-        buttonGPressed = true;
-      }
-      if(buttonGPressed){
-        if(millis() - buttonGPressStartTime >= 700){   // 按钮G按下时间超过700毫秒
-          buttonGPressed = false;
-          Sb_Set = 0;
-          Morse_input_count = 0;
-          // 清空输入缓冲区
-          inputBuffer = "";
+          // 检测按钮F的状态
+          if (digitalRead(1) == 0) {
+            // 按钮F被按下
+            delay(50); // 延迟一小段时间以防止抖动
+            if (digitalRead(1) == 0) {
+              if(tag_clear){    //清除标记
+                LCD_SetCursor(2,1);
+                LCD_Print("        ");
+                LCD_SetCursor(2,1);
+                tag_clear = false;
+              }
+              if(FastIned_L5){
+                input_count_L5 = 0;
+                FastIned_L5 = false;
+                // 清空输入缓冲区
+                inputBuffer = "";
+              }
+
+              inputBuffer += "-"; // 将“-”添加到输入缓冲区
+              Serial.print("-");
+              input_count_L5 += 1;    //输入计数
+              if(input_count_L5 <= 8){
+              LCD_Print("-");
+              }
+              delay(200); // 延迟一段时间以避免重复检测到按下
+            }
+          }
+        }else{
+          inputBuffer = inputBuffer.substring(0, inputBuffer.length() - 1);      // 删除输入缓冲区的最后一个字符
+
+          input_count_L5 = input_count_L5 - 1;
+          FlashLED_3();   //闪灯报错
           Serial.println("");   //换行
-          Serial.println("Input buffer cleared.");
-        }else if(digitalRead(0) == 1 && inputBuffer != ""){     // 按钮G按下时间不超过1秒
-          buttonGPressed = false;
-          // 发送输入缓冲区内容
-          sendInputBuffer();
-          Sb_Set = 0;
+          Serial.println("Code limit");
         }
-        if(digitalRead(0) == 1){
-          buttonGPressed = false;
+
+        // 检测按钮G的状态
+        if(digitalRead(0) == 0 && !buttonGPressed){
+          buttonGPressStartTime = millis();
+          buttonGPressed = true;
+        }
+        if(buttonGPressed){
+          if(millis() - buttonGPressStartTime >= 700){   // 按钮G按下时间超过700毫秒
+            buttonGPressed = false;
+            Sb_Set = 0;
+            input_count_L5 = 0;
+            FastIned_L5 = false;
+            // 清空输入缓冲区
+            inputBuffer = "";
+            Serial.println("");   //换行
+            Serial.println("Input buffer cleared.");
+          }else if(digitalRead(0) == 1 && inputBuffer != ""){     // 按钮G按下时间不超过700毫秒
+            buttonGPressed = false;
+            // 发送输入缓冲区内容
+            sendInputBuffer();
+            Sb_Set = 0;
+          }
+          if(digitalRead(0) == 1){
+            buttonGPressed = false;
+          }
         }
       }
-
     }
     Lat_Off = 0;
-
   }else{       //否则未配对
     if(bleKeyboard.isConnected() == false && Connect_Check != 1 && Connect_Check != 2){
       LED1_2_Countrl(1, 0);    //BLE通信指示灯（1）灭
@@ -2382,7 +2481,8 @@ void loop() {
       Serial.println("BLE offline");
       FlashLED_3();
       inputBuffer = ""; // 清空输入缓冲区
-      Morse_input_count = 0;
+      input_count_L5 = 0;
+      FastIned_L5 = false;
       Sb_Set = 0;
       Lat_Off = 1;
       Key_Count = 0;      //键盘计数清除
