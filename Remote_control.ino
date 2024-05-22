@@ -16,7 +16,7 @@ unsigned long Total_Key = 0;  // 总按键计数
 const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 
-char version[] = "2.3.20";          //*************************版本信息*************************
+char version[] = "2.3.22";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -134,10 +134,11 @@ const char index_html[] PROGMEM = R"rawliteral(
 // 定义摩尔斯代码
 const char* morseCode[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", 
                            "-.--", "--..", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----.", "-----", ".-.-.-", "--..--", "---...", "-.-.-.", "..--..", "-...-", ".----.", 
-                           "-..-.", "-.-.--", "-....-", "..--.-", ".-..-.", "-.--.", "-.--.-", "...-..-", ".--.--", ".--.-.", "--.-..", ".--..", "-..--", "...--.", ".-..-", "..-.--", "-.---", "---.--"};
+                           "-..-.", "-.-.--", "-....-", "..--.-", ".-..-.", "-.--.", "-.--.-", "...-..-", ".--.--", ".--.-.", "--.-..", ".--..", "-..--", "...--.", ".-..-", "..-.--", "-.---", "---.--",
+                           "-.---."};
 
 // 定义字符集合
-const char* letters = "abcdefghijklmnopqrstuvwxyz1234567890.,:;?='/!-_\"()$&@+* ABCDE"; // 字母、数字和一些常见符号，A:win+space，B:shift+del，C:backspace，D:Esc，E:Tab
+const char* letters = "abcdefghijklmnopqrstuvwxyz1234567890.,:;?='/!-_\"()$&@+* ABCDEF"; // 字母、数字和一些常见符号，A:win+space，B:shift+del，C:backspace，D:Esc，E:Tab，F:F5
 //****************************************************************L5输入定义结束****************************************************************
 
 //**********************************************LCD函数**********************************************
@@ -1255,6 +1256,7 @@ void Page_settings() {        //“设置”界面******************************
         Op_Sp1 = 1;
         ExitS_CK = 1;
         Settings_Opened = 0;
+        LockBottom_L5 = true;     //锁定L5
         break;
       }else{
         switch(sP){       //“←”的跳转
@@ -1543,6 +1545,9 @@ void sendInputBuffer() {      //摩斯密码解析发送
         }else if (letters[i] == 'E'){      //Tab
           bleKeyboard.press(KEY_TAB);
           outputString = "(Tab)"; 
+        }else if (letters[i] == 'F'){      //F5
+          bleKeyboard.press(KEY_F5);
+          outputString = "(F5)"; 
         }else{
           bleKeyboard.press(letters[i]);      //蓝牙打印字符
           outputString = letters[i];
@@ -1716,7 +1721,7 @@ void loop() {
         if(lastinputBuffer == ""){    //如果为""则为黑方块
           LCD_Write(0xff, 1);
         }else{
-          if(strcmp(lastinputBuffer.c_str(), " ") == 0){ // 比较字符串和字符空格
+          if(strcmp(lastinputBuffer.c_str(), " ") == 0){ // 比较字符串和字符'空格'
               LCD_Write(0x0, 1);
           } else if(strcmp(lastinputBuffer.c_str(), "A") == 0){ // 比较字符串和字符'A'
               LCD_Write(0x1, 1);
@@ -1728,6 +1733,9 @@ void loop() {
               LCD_Write(0x4, 1);
           } else if(strcmp(lastinputBuffer.c_str(), "E") == 0){ // 比较字符串和字符'E'
               LCD_Write(0x5, 1);
+          } else if(strcmp(lastinputBuffer.c_str(), "F") == 0){ // 比较字符串和字符'F'
+              LCD_SetCursor(1, 6);
+              LCD_Print(">F5");
           } else {
               LCD_Print(lastinputBuffer.c_str());
           }
@@ -1813,7 +1821,7 @@ void loop() {
             LCD_SetCursor(2, 1);
             LCD_Print("Loading");
             Custom_characters(2);      //自定义字符集2
-            LockBottom_L5 = true;
+            LockBottom_L5 = true;     //锁定L5
             break;
           case 1:
             LCD_Clear();
