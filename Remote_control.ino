@@ -15,8 +15,9 @@ unsigned long updateInterval;  // 更新间隔为1秒
 unsigned long Total_Key = 0;  // 总按键计数
 const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
+unsigned long lastDisconnectTime = 0;     //记录最后一次BLE掉线的时间
 
-char version[] = "2.3.22";          //*************************版本信息*************************
+char version[] = "2.3.26";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -26,7 +27,7 @@ int LED = 1, Connect_Check = 2, KeyA = 485, KeyB = 485, KeyC = 485, KeyD = 485, 
     Op_Sp1 = 1, Op_Sp2 = 1, Op_Sp6 = 1, sP = 0, ExitS_CK = 0, LED_Ban = 0, Key_Speed = 2, Key_Count = 0,
     Ke_Dc = 0, Kp_inde = 0, KC_Ban = 0, Kfls = 0, Op_Sp8 = 1, Op_Sp9 = 1, sP_Op = 0, KC_WifiC = 0,
     Op_Sp15, Settings_Opened = 0, Sp15_P, Op_Sp18 = 1, State_LED3 = 0, delay_display_wifi_password = 0,
-    input_count_L5 = 0, Op_Sp19 = 1, Op_Sp20 = 1;
+    input_count_L5 = 0, Op_Sp19 = 1, Op_Sp20 = 1, disconnectCount = 0;
 char wifi_Password[PASSWORD_LENGTH + 1];
 bool buttonGPressed = false, tag_clear = false, error_display = false, show_L5 = true, LockBottom_L5 = false, fast_L5 = false, IBtran = false, FastIned_L5 = false;
 
@@ -213,7 +214,8 @@ void Custom_characters(int Type) {       //自定义字符
   byte CG_dat18[] = {0x1,0x5,0x9,0x1f,0x9,0x5,0x1,0x0};  //退格键
   byte CG_dat19[] = {0x0,0x8,0x1f,0x8,0x2,0x1f,0x2,0x0};  //Tab键
   byte CG_dat20[] = {0x2,0x4,0xc,0x1f,0x6,0x4,0x8,0x0};  //快速输入模式标志（闪电）
-  
+  byte CG_dat21[] = {0x11,0xa,0x4,0xa,0x11,0x0,0x1f,0x0};  //错误
+  byte CG_dat22[] = {0x4,0x4,0x4,0x0,0x4,0x0,0x1f,0x0};  //信息（提示）
   
   switch(Type){       //类型切换
   case 0:
@@ -242,6 +244,10 @@ void Custom_characters(int Type) {       //自定义字符
     LCD_Makechar(4, CG_dat16);
     LCD_Makechar(5, CG_dat19);
     LCD_Makechar(6, CG_dat20);
+    break;
+  case 3:     //系统提示专用
+    LCD_Makechar(0, CG_dat21);     //输出0x0-0x1
+    LCD_Makechar(1, CG_dat22);
   }
 }
 //******************************LCD自定义字符区结束******************************
@@ -612,7 +618,7 @@ void Device_Name() {      //设备名称
   LCD_Print("control");
 }
 
-void Tip_Set() {        //“设置”页面中的提示
+void PageTip_Set() {        //“设置”页面中的提示
   LCD_SetCursor(2, 1);
   if(sP == 5 || sP == 13){       //转换符号为判断
     LCD_Write(0x3, 1);
@@ -640,6 +646,57 @@ void Tip_Set() {        //“设置”页面中的提示
     LCD_Write(0x1, 1);
     LCD_Write(0x0, 1);
   }
+}
+
+void System_Message(int Message_type, const char* Message){     //系统信息显示
+  LCD_Clear();
+  Custom_characters(3);      //自定义字符集3
+  LCD_SetCursor(1, 1);
+  switch(Message_type){   //第一行文案切换
+  case 0:
+    LCD_Write(0x0, 1);
+    LCD_Print("Error");
+    LCD_SetCursor(2, 7);
+    LCD_Print("G");
+    LCD_Write(0x7e, 1);
+    break;
+  case 1:
+    LCD_Write(0x1, 1);
+    LCD_Print("Message");
+  }
+  LCD_SetCursor(2, 1);
+  LCD_Print(">");
+  LCD_Print(Message);
+}
+
+
+void handleBLEDisconnect(){      // BLE频繁掉线探针
+    unsigned long currentTime = millis();
+    
+    if(currentTime - lastDisconnectTime <= 30000){    // 检查是否在30秒内
+      disconnectCount++;
+    }else{
+      disconnectCount = 1;        // 超过30秒，重置计数器
+    }
+    lastDisconnectTime = currentTime;    // 更新最后一次掉线时间
+    
+    if(disconnectCount == 3){    // 检查是否在30秒内第三次掉线
+      Serial.println("Error_0x65(BLE disconnected 3 times in 30 seconds)");
+      Change_LED3(1);
+      System_Message(0, "0x65");
+      while(1) {
+        delay(2);
+        esp_task_wdt_reset();
+        if(digitalRead(0) == 0){       //按下G
+          disconnectCount = 0;      //清除掉线计数
+
+          LCD_Clear();
+          Custom_characters(0);      //自定义字符集0
+          Change_LED3(0);
+          break;
+        }
+      }
+    }
 }
 
 void Page_settings() {        //“设置”界面****************************************************************
@@ -695,7 +752,7 @@ void Page_settings() {        //“设置”界面******************************
         case 9:
           LCD_Print("About");
         }
-        Tip_Set();
+        PageTip_Set();
         break;
       case 1:
         LCD_Write(Op_Sp2 + 0x30, 1);      //设置选项序号2
@@ -716,7 +773,7 @@ void Page_settings() {        //“设置”界面******************************
         case 5:
           LCD_Print("Device");
         }
-        Tip_Set();
+        PageTip_Set();
         break;
       case 2:         //设备名称
         Device_Name();
@@ -742,7 +799,7 @@ void Page_settings() {        //“设置”界面******************************
         break;
       case 5:     //重启提示
         LCD_Print("Sure?");
-        Tip_Set();
+        PageTip_Set();
         break;
       case 6:       //LED选项
         if(LED_Ban == 0){      //LED未禁用
@@ -828,7 +885,7 @@ void Page_settings() {        //“设置”界面******************************
         case 3:
           LCD_Print("C_Temp");
         }
-        Tip_Set();
+        PageTip_Set();
         break;
       case 10:       //操作按键按下操作计数
         Serial.print("Total press count:");
@@ -887,7 +944,7 @@ void Page_settings() {        //“设置”界面******************************
         break;
       case 13:      //重置设置项
         LCD_Print("Sure?");
-        Tip_Set();
+        PageTip_Set();
         break;
       case 14:        //芯片温度
         {
@@ -1388,10 +1445,7 @@ void Page_settings() {        //“设置”界面******************************
       case 5:
         FlashLED_3();
         Serial.println("Restart");
-        LCD_Clear();
-        LCD_Print("|Attent|");
-        LCD_SetCursor(2, 1);
-        LCD_Print(">Wait");
+        System_Message(1, "Wait");
 
         delay(500);
         resetFunc();
@@ -1448,11 +1502,11 @@ void Page_settings() {        //“设置”界面******************************
         }
 
         FlashLED_3();
-        LCD_Print("|Attent|");
-        LCD_SetCursor(2, 1);
-        LCD_Print(">Success");
+        System_Message(1, "Success");
 
         delay(2000);
+        LCD_Clear();
+        Custom_characters(1);      //自定义字符集1
         sP = 0;
         break;
       case 15:
@@ -1770,6 +1824,12 @@ void loop() {
   if(bleKeyboard.isConnected()){       //如果已配对
     Connect_Check = 0;
     if(Lat_Off == 1){           //开始配对使用
+      if(Mode == 5){
+        Custom_characters(2);      //自定义字符集2
+      }else{
+        Custom_characters(0);      //自定义字符集0
+      }
+
       Serial.println("Start Enter");
       FlashLED_3();
     }
@@ -2488,7 +2548,7 @@ void loop() {
       Serial.println("");   //换行
       Serial.println("BLE offline");
       FlashLED_3();
-      inputBuffer = ""; // 清空输入缓冲区
+      inputBuffer = "";      // 清空输入缓冲区
       input_count_L5 = 0;
       FastIned_L5 = false;
       Sb_Set = 0;
@@ -2499,11 +2559,11 @@ void loop() {
       Serial.println("BLE pairing...");
       FlashLED_3();
 
-      LCD_Clear();          //LCD提示掉线
-      LCD_Print("|Attent|");
-      LCD_SetCursor(2, 1);
-      LCD_Print(">Offline");
+      System_Message(1, "Offline");          //LCD提示掉线
       delay(4000);
+      LCD_Clear();
+      Custom_characters(0);      //自定义字符集0
+      handleBLEDisconnect();     //掉线异常探针
       esp_task_wdt_reset();
       
       Connect_Check = 1;
