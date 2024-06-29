@@ -17,7 +17,7 @@ const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 unsigned long lastDisconnectTime = 0;     //记录最后一次BLE掉线的时间
 
-char version[] = "2.3.26";          //*************************版本信息*************************
+char version[] = "2.3.28";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -50,85 +50,389 @@ AsyncWebServer server(80);        // 创建WebServer对象, 端口号80
 // 使用端口号80可以直接输入IP访问，使用其它端口需要输入IP:端口号访问
 // 一个储存网页的数组
 const char index_html[] PROGMEM = R"rawliteral(
-<!-- HTML页面内容，包括按钮和JavaScript代码 -->
 <!DOCTYPE HTML>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Remote control Wifi控制</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAC4jAAAuIwF4pT92AAAAsklEQVRoge2asRGCQBQF7xgDS7ELCEntQy1G7cOUELuwFLOzAS5w0GPnz27IJey8e/8TkEspKQLd1i/wKxShoQiNMCK72sHp+UDO5Xt/zEvPwySiCI0wItWyp5QWS9WQr4ZNmEQUoVHtyPk9N12It/2wqpNhElGEhiI0ttjsf5mGYRJRhEa1I4fxuvouv6ZLsy/oMIkoQkMRGorQUISGIjQUoaEIDUVoZP9FgaEIDUVofABsTRRnSgUS2QAAAABJRU5ErkJggg==">
+  <title>Remote control Wifi Control</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      background-color: #f0f0f0;
+    }
+    h1, h4, h5, h6 {
+      margin: 10px 0;
+      color: #333;
+    }
+    h1 {
+      margin-top: 30px;
+      white-space: nowrap; /* 不换行 */
+    }
+    .container {
+      width: 90%;
+      max-width: 800px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0);
+      position: relative; /* 让下拉框定位相对于.container */
+    }
+    .grid-container {
+      display: grid;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .grid-container.single {
+      max-width: calc(100% / 3.085); /* 设置按钮最大宽度为父容器宽度的1/3 */
+      margin: auto;
+      grid-template-columns: 1fr;
+    }
+    .grid-container.triple {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .grid-container.quad {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    button {
+      width: 100%;
+      height: 50px;
+      font-size: 16px;
+      color: #fff;
+      background-color: #d8b86e;
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s, transform 0.3s;
+    }
+    button:active {
+      background-color: #d8b86e;
+    }
+    button:hover {
+      background-color: #407e70;
+      transform: translateY(-2px);
+    }
+    button:active {
+      background-color: #6bc0ae;
+      transform: translateY(0);
+    }
+    .language-selector-container {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #fff;
+      appearance: none;
+      width: 150px; /* 固定宽度 */
+    }
+    .language-selector {
+      border: none;
+      background: none;
+      cursor: pointer;
+      outline: none;
+      font-size: 14px;
+      width: 100%; /* 撑满容器宽度 */
+    }
+    .language-selector:focus {
+      outline: 2px solid #6bc0ae;
+    }
+    .copyright {
+      margin-top: 30px; /* 调整版权声明距离上方内容的间距 */
+      font-size: 12px;
+      color: #666;
+      font-family: Arial, sans-serif;
+    }
+    :focus {
+      outline: 3px solid #6bc0ae; /* 示例的外边框颜色 */
+      /* 添加其他样式以增强焦点可见性 */
+    }
+    @media (max-width: 600px) {   /* 小屏设备 */
+      body {
+        background-color: #fff;
+      }
+      h1 {
+        font-size: calc(1.2rem + 1.2vw); /* 小屏幕下的字号调整 */
+      }
+      .container {
+        box-shadow: none;
+      }
+      .grid-container {
+        margin-bottom: 30px; /* 为每类按钮之间增加间距 */
+      }
+      .grid-container.single {
+        margin: auto;
+        width: 100%;
+        max-width: 100%;
+      }
+      .grid-container.triple,
+      .grid-container.quad {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (hover: none) {   /* 触摸设备的样式 */
+      button:hover {
+        background-color: #d8b86e;
+      }
+      button:active {
+        background-color: #6bc0ae;
+      }
+      .language-selector:focus {
+        outline: none;
+      }
+      :focus {
+        outline: none;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div>
-    <h1>Remote control Wifi控制</h1>
-    <h5>您已开启Remote control的Wifi控制功能，可通过该页面进行遥控。</h5>
+  <div class="container">
+    <div class="language-selector-container">
+      <!-- 语言选择器 -->
+      <select class="language-selector" onchange="switchLanguage(this.value)">
+        <option value="en">English</option>
+        <option value="zh-CN">简体中文（中国大陆）</option>
+        <option value="zh-TW-MO-HK">繁體中文（香港特別行政區、澳門特別行政區、台灣）</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="pt">Português</option>
+        <option value="ja">日本語</option>
+        <option value="ru">Pусский</option>
+        <option value="it">Italiano</option>
+        <option value="nl">Nederlands</option>
+        <!-- 可以添加更多语言选项 -->
+      </select>
+    </div>
+    <h1 id="title">Remote control Wifi Control</h1>
+    <h5 id="subtitle">You have enabled wifi control for Remote control, and you can operate it remotely through this page.</h5>
     <hr />
+
+    <h4 id="function-keys">Available Function Keys</h4>
+
+    <div class="grid-container single">
+      <button type="button" onclick="sendCommand(1)">Up</button>
+    </div>
+
+    <div class="grid-container triple">
+      <button type="button" onclick="sendCommand(2)">Left</button>
+      <button type="button" onclick="sendCommand(3)">Down</button>
+      <button type="button" onclick="sendCommand(4)">Right</button>
+    </div>
+
+    <div class="grid-container triple">
+      <button type="button" onclick="sendCommand(5)">V-</button>
+      <button type="button" onclick="sendCommand(6)">V+</button>
+      <button type="button" onclick="sendCommand(7)">Pause/Play</button>
+    </div>
+
+    <div class="grid-container quad">
+      <button type="button" onclick="sendCommand(8)">Win</button>
+      <button type="button" onclick="sendCommand(9)">Alt+Tab</button>
+      <button type="button" onclick="sendCommand(10)">Alt+F4</button>
+      <button type="button" onclick="sendCommand(11)">Enter</button>
+    </div>
+
+    <h6 id="disclaimer">*The above function keys are available only when Bluetooth is connected and remote control is not locked.</h6>
+
+    <div class="copyright">
+      Copyright&copy; 2020-<span id="currentYear"></span> ID_Inc. All rights reserved.
+    </div>
   </div>
 
-  <div>
-    <h4>可使用的功能按键</h4>
-  </div> 
+  <script>
+    // 按下按钮会运行这个JS函数
+    function sendCommand(buttonNumber) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "/sendCommand?button=" + buttonNumber, true);
+      xhr.send();
+    }
+    
+    // 默认语言为英语
+    let currentLanguage = 'en';
 
-  <!-- 添加按钮时，请按照下面的格式添加注释和按钮代码 -->
-  <!--
-  <div>
-    <button type="button" style="height:40px;width:100px;" onclick="sendCommand(1)">Button 1</button>
-    <button type="button" style="height:40px;width:100px;" onclick="sendCommand(2)">Button 2</button>
-    ...
-  </div>
-  -->
+    // 语言切换函数
+    function switchLanguage(language) {
+      currentLanguage = language;
+      updateTextContent(); // 更新文本内容，包括标题
+      updateTitle(); // 更新页面标题
+    }
 
-    <div>
-        <table>
-            <tr>
-                <td></td>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(1)"> Up </button></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(2)"> Left </button></td>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(3)"> Down </button></td>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(4)"> Right </button></td>
-            </tr>
-        </table>
-    </div>
-    <br>
+    // 更新页面标题函数
+    function updateTitle() {
+      const translations = {
+        'zh-CN': 'Remote control Wifi控制',
+        'zh-TW-MO-HK': 'Remote control Wifi控制',
+        'en': 'Remote control Wifi Control',
+        'es': 'Control remoto de Wifi',
+        'fr': 'Contrôle à distance du Wifi',
+        'de': 'Fernbedienung Wifi Steuerung',
+        'pt': 'Controle remoto do Wifi',
+        'ja': 'リモートコントロールWifi制御',
+        'ru': 'Удаленное управление Wifi',
+        'it': 'Controllo remoto Wifi',
+        'nl': 'Wifi Afstandsbediening'
+        // 可以添加更多语言的标题翻译
+      };
 
-    <div>
-        <table>
-            <tr>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(5)"> V- </button></td>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(6)"> V+ </button></td>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(7)"> Pause/Play </button></td>
-            </tr>
-        </table>
-    </div>
-    <br>
+      document.title = translations[currentLanguage];
+    }
 
-    <div>
-        <table>
-            <tr>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(8)"> Win </button></td>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(9)"> Alt+Tab </button></td>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(10)"> Alt+F4 </button></td>
-                <td><button type="button" style="height:40px;width:100px;" onclick="sendCommand(11)"> Enter </button></td>
-            </tr>
-        </table>
-    </div>
-    <br>
+    // 更新文本内容函数
+    function updateTextContent() {
+      const translations = {
+        'zh-CN': {
+          'title': 'Remote control Wifi控制',
+          'subtitle': '您已启用Remote control的wifi控制功能，可以通过此页面进行遥控。',
+          'function-keys': '可用功能键',
+          'disclaimer': '*以上功能键仅在蓝牙连接且远程控制未锁定时可用。'
+        },
+        'zh-TW-MO-HK': {
+          'title': 'Remote control Wifi控制',
+          'subtitle': '您已啟用Remote control的wifi控制功能，可以透過此頁面進行遙控。',
+          'function-keys': '可用功能鍵',
+          'disclaimer': '*以上功能鍵僅在藍牙連接且遠程控制未鎖定時可用。'
+        },
+        'en': {
+          'title': 'Remote control Wifi Control',
+          'subtitle': 'You have enabled wifi control for Remote control, and you can operate it remotely through this page.',
+          'function-keys': 'Available Function Keys',
+          'disclaimer': '*The above function keys are available only when Bluetooth is connected and remote control is not locked.'
+        },
+        'es': {
+          'title': 'Control remoto de Wifi',
+          'subtitle': 'Ha habilitado el control wifi para Remote control, y puede operarlo de forma remota a través de esta página.',
+          'function-keys': 'Teclas de función disponibles',
+          'disclaimer': '*Las teclas de función anteriores solo están disponibles cuando Bluetooth está conectado y el control remoto no está bloqueado.'
+        },
+        'fr': {
+          'title': 'Contrôle à distance du Wifi',
+          'subtitle': 'Vous avez activé le contrôle wifi pour Remote control, et vous pouvez l\'utiliser à distance via cette page.',
+          'function-keys': 'Touches de fonction disponibles',
+          'disclaimer': '*Les touches de fonction ci-dessus ne sont disponibles que lorsque le Bluetooth est connecté et que la télécommande n\'est pas verrouillée.'
+        },
+        'de': {
+          'title': 'Fernbedienung Wifi Steuerung',
+          'subtitle': 'Sie haben die WLAN-Steuerung für Remote control aktiviert und können diese über diese Seite fernsteuern.',
+          'function-keys': 'Verfügbare Funktionstasten',
+          'disclaimer': '*Die oben genannten Funktionstasten sind nur verfügbar, wenn Bluetooth verbunden ist und die Fernbedienung nicht gesperrt ist.'
+        },
+        'pt': {
+          'title': 'Controle remoto do Wifi',
+          'subtitle': 'Você habilitou o controle wifi para Remote control e pode operá-lo remotamente através desta página.',
+          'function-keys': 'Teclas de função disponíveis',
+          'disclaimer': '*As teclas de função acima estão disponíveis apenas quando o Bluetooth está conectado e o controle remoto não está bloqueado.'
+        },
+        'ja': {
+          'title': 'リモートコントロールWifi制御',
+          'subtitle': 'あなたはRemote controlのwifi制御を有効にし、このページを通じてリモートで操作することができます。',
+          'function-keys': '利用可能な機能キー',
+          'disclaimer': '*上記の機能キーは、Bluetoothが接続されており、リモートコントロールがロックされていない場合にのみ使用できます。'
+        },
+        'ru': {
+          'title': 'Удаленное управление Wifi',
+          'subtitle': 'Вы активировали беспроводное управление для Remote control, и можете управлять им удаленно через эту страницу.',
+          'function-keys': 'Доступные функциональные клавиши',
+          'disclaimer': '*Вышеуказанные функциональные клавиши доступны только при подключенном Bluetooth и не заблокированном удаленном управлении.'
+        },
+        'it': {
+          'title': 'Controllo remoto Wifi',
+          'subtitle': 'Hai abilitato il controllo wifi per Remote control e puoi utilizzarlo in remoto tramite questa pagina.',
+          'function-keys': 'Tasti funzione disponibili',
+          'disclaimer': '*I tasti funzione sopra indicati sono disponibili solo quando il Bluetooth è collegato e il controllo remoto non è bloccato.'
+        },
+        'nl': {
+          'title': 'Wifi Afstandsbediening',
+          'subtitle': 'U heeft de wifi-bediening voor Remote control ingeschakeld en u kunt deze op afstand bedienen via deze pagina.',
+          'function-keys': 'Beschikbare functietoetsen',
+          'disclaimer': '*De bovenstaande functietoetsen zijn alleen beschikbaar wanneer Bluetooth is verbonden en de afstandsbediening niet is vergrendeld.'
+        }
+        // 可以添加更多语言的翻译
+      };
 
-    <div>
-        <h6>*以上功能按键仅在同时满足蓝牙已连接和远程控制未被锁定时可用。</h6>
-    </div> 
+      // 更新页面上的文本内容
+      Object.keys(translations[currentLanguage]).forEach(key => {
+        const element = document.getElementById(key);
+        if (element) {
+          element.textContent = translations[currentLanguage][key];
+        }
+      });
+    }
+
+    // 更新版权年份
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+    // 页面加载时初始化文本内容和标题
+    updateTextContent();
+    updateTitle();
+
+    // 自动检测用户系统语言并设置网页语言
+    const userLanguage = navigator.language.toLowerCase(); // 获取用户完整的语言标签并转为小写
+    let languageCode = '';
+
+    // 根据用户语言标签截取前两个字符来确定语言
+    switch (userLanguage.substring(0, 2)) {
+      case 'zh':
+        // 检查是否为中文，进一步区分简体和繁体
+        if (userLanguage === 'zh-cn' || userLanguage === 'zh-hans' || userLanguage === 'zh-sg') {
+          languageCode = 'zh-CN'; // 简体中文
+        } else if (userLanguage === 'zh-tw' || userLanguage === 'zh-hant' || userLanguage === 'zh-hk') {
+          languageCode = 'zh-TW-MO-HK-HANT-HK'; // 繁体中文
+        } else {
+          // 默认使用简体中文
+          languageCode = 'zh-CN';
+        }
+        break;
+      case 'en':
+        languageCode = 'en'; // 英语
+        break;
+      case 'es':
+        languageCode = 'es'; // 西班牙语
+        break;
+      case 'fr':
+        languageCode = 'fr'; // 法语
+        break;
+      case 'de':
+        languageCode = 'de'; // 德语
+        break;
+      case 'pt':
+        languageCode = 'pt'; // 葡萄牙语
+        break;
+      case 'ja':
+        languageCode = 'ja'; // 日语
+        break;
+      case 'ru':
+        languageCode = 'ru'; // 俄语
+        break;
+      case 'it':
+        languageCode = 'it'; // 意大利语
+        break;
+      case 'nl':
+        languageCode = 'nl'; // 荷兰语
+        break;
+      default:
+        languageCode = 'en'; // 默认为英语
+        break;
+    }
+
+    // 根据识别的语言代码切换网页语言
+    switchLanguage(languageCode);
+    document.querySelector('.language-selector').value = languageCode; // 更新下拉框选择
+      </script>
 </body>
-
-<script>
-  // 按下按钮会运行这个JS函数
-  function sendCommand(buttonNumber) {
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "/sendCommand?button=" + buttonNumber, true);
-    xhr.send();
-  }
-</script>)rawliteral";
+</html>
+)rawliteral";
 //****************************************************************Wifi Web Page定义结束****************************************************************
 
 //****************************************************************L5输入定义****************************************************************
@@ -659,10 +963,12 @@ void System_Message(int Message_type, const char* Message){     //系统信息�
     LCD_SetCursor(2, 7);
     LCD_Print("G");
     LCD_Write(0x7e, 1);
+    Change_LED3(1);
     break;
   case 1:
     LCD_Write(0x1, 1);
     LCD_Print("Message");
+    FlashLED_3();
   }
   LCD_SetCursor(2, 1);
   LCD_Print(">");
@@ -682,7 +988,6 @@ void handleBLEDisconnect(){      // BLE频繁掉线探针
     
     if(disconnectCount == 3){    // 检查是否在30秒内第三次掉线
       Serial.println("Error_0x65(BLE disconnected 3 times in 30 seconds)");
-      Change_LED3(1);
       System_Message(0, "0x65");
       while(1) {
         delay(2);
@@ -1443,7 +1748,6 @@ void Page_settings() {        //“设置”界面******************************
         }
         break;
       case 5:
-        FlashLED_3();
         Serial.println("Restart");
         System_Message(1, "Wait");
 
@@ -1500,10 +1804,8 @@ void Page_settings() {        //“设置”界面******************************
         if(bleKeyboard.isConnected()){    //如果已连接
           LED1_2_Countrl(1, 1);    //BLE通信指示灯（1）亮
         }
-
-        FlashLED_3();
+        
         System_Message(1, "Success");
-
         delay(2000);
         LCD_Clear();
         Custom_characters(1);      //自定义字符集1
@@ -2557,7 +2859,6 @@ void loop() {
       Kp_inde = 0;
       BleKeyboard bleKeyboard("Remote control", "ID_drives", 100);
       Serial.println("BLE pairing...");
-      FlashLED_3();
 
       System_Message(1, "Offline");          //LCD提示掉线
       delay(4000);

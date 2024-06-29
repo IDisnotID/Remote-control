@@ -1,2 +1,2 @@
-0x64		normal
+0x64		OK
 0x65		BLE offline too much time, check your connected device
