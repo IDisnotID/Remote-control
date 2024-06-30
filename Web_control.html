@@ -131,9 +131,11 @@
     @media (hover: none) {   /* 触摸设备的样式 */
       button:hover {
         background-color: #d8b86e;
+        transform: none;
       }
       button:active {
         background-color: #6bc0ae;
+        transform: none;
       }
       .language-selector:focus {
         outline: none;
@@ -150,8 +152,6 @@
       <!-- 语言选择器 -->
       <select class="language-selector" onchange="switchLanguage(this.value)">
         <option value="en">English</option>
-        <option value="zh-CN">简体中文（中国大陆）</option>
-        <option value="zh-TW-MO-HK">繁體中文（香港特別行政區、澳門特別行政區、台灣）</option>
         <option value="es">Español</option>
         <option value="fr">Français</option>
         <option value="de">Deutsch</option>
@@ -160,7 +160,11 @@
         <option value="ru">Pусский</option>
         <option value="it">Italiano</option>
         <option value="nl">Nederlands</option>
-        <!-- 可以添加更多语言选项 -->
+        <option value="ko">한국어</option>
+        <option value="ar">العربية</option>
+        <option value="zh-CN">简体中文（中国大陆）</option>
+        <option value="zh-TW-MO-HK">繁體中文（香港特別行政區、澳門特別行政區、台灣）</option>
+        <!-- 多语言选项 -->
       </select>
     </div>
     <h1 id="title">Remote control Wifi Control</h1>
@@ -230,8 +234,10 @@
         'ja': 'リモートコントロールWifi制御',
         'ru': 'Удаленное управление Wifi',
         'it': 'Controllo remoto Wifi',
-        'nl': 'Wifi Afstandsbediening'
-        // 可以添加更多语言的标题翻译
+        'nl': 'Wifi Afstandsbediening',
+        'ko': '리모컨 Wifi 제어',
+        'ar': 'التحكم عن بعد عبر Wifi'
+        // 多语言标题翻译
       };
 
       document.title = translations[currentLanguage];
@@ -305,8 +311,20 @@
           'subtitle': 'U heeft de wifi-bediening voor Remote control ingeschakeld en u kunt deze op afstand bedienen via deze pagina.',
           'function-keys': 'Beschikbare functietoetsen',
           'disclaimer': '*De bovenstaande functietoetsen zijn alleen beschikbaar wanneer Bluetooth is verbonden en de afstandsbediening niet is vergrendeld.'
+        },
+        'ko': {
+          'title': '리모컨 Wifi 제어',
+          'subtitle': '리모컨의 wifi 제어를 활성화했으며, 이 페이지를 통해 원격으로 조작할 수 있습니다.',
+          'function-keys': '사용 가능한 기능 키',
+          'disclaimer': '*위의 기능 키는 블루투스가 연결되고 원격 제어가 잠기지 않은 경우에만 사용할 수 있습니다.',
+        },
+        'ar': {
+          'title': 'التحكم عن بعد عبر Wifi',
+          'subtitle': 'لقد قمت بتمكين التحكم عبر wifi للتحكم عن بعد، ويمكنك تشغيله عن بُعد من خلال هذه الصفحة.',
+          'function-keys': 'مفاتيح الوظائف المتاحة',
+          'disclaimer': '*المفاتيح الوظيفية المذكورة أعلاه متاحة فقط عند اتصال البلوتوث وعدم قفل التحكم عن بُعد.',
         }
-        // 可以添加更多语言的翻译
+        // 多语言翻译
       };
 
       // 更新页面上的文本内容
@@ -336,7 +354,7 @@
         if (userLanguage === 'zh-cn' || userLanguage === 'zh-hans' || userLanguage === 'zh-sg') {
           languageCode = 'zh-CN'; // 简体中文
         } else if (userLanguage === 'zh-tw' || userLanguage === 'zh-hant' || userLanguage === 'zh-hk') {
-          languageCode = 'zh-TW-MO-HK-HANT-HK'; // 繁体中文
+          languageCode = 'zh-TW-MO-HK'; // 繁体中文
         } else {
           // 默认使用简体中文
           languageCode = 'zh-CN';
@@ -369,8 +387,14 @@
       case 'nl':
         languageCode = 'nl'; // 荷兰语
         break;
+      case 'ko':
+        languageCode = 'ko'; // 韩语
+        break;
+      case 'ar':
+        languageCode = 'ar'; // 阿拉伯语
+        break;
       default:
-        languageCode = 'en'; // 默认为英语
+        languageCode = 'ar'; // 默认为英语
         break;
     }
 
