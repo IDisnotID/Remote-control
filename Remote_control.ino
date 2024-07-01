@@ -17,11 +17,11 @@ const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 unsigned long lastDisconnectTime = 0;     //记录最后一次BLE掉线的时间
 
-char version[] = "2.3.28";          //*************************版本信息*************************
+char version[] = "2.3.30";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
-int LED = 1, Connect_Check = 2, KeyA = 485, KeyB = 485, KeyC = 485, KeyD = 485, KeyMode = 485, KeyE = 485, KeyF = 485, KeyG = 485, Key_wifi = 485,
+int LED = 1, Connect_Check = 2, KeyA = 485, KeyB = 485, KeyC = 485, KeyD = 485, KeyMode = 485, KeyE = 485, KeyF = 485, KeyG = 485, Key_wifi = 100,
     Fast_Key1 = 50, Fast_Key2 = 50, Fast_Key3 = 50, Fast_Key4 = 50, Mode = 1, B_Wait = 0, Firest_Offline = 0,
     Lat_Off = 1, Lock = 0, L_Check = 0, Dsd = 0, sfLED = 1, Sb_Set = 0, K_last = 0, T_last = 0, B_Count = 0,
     Op_Sp1 = 1, Op_Sp2 = 1, Op_Sp6 = 1, sP = 0, ExitS_CK = 0, LED_Ban = 0, Key_Speed = 2, Key_Count = 0,
@@ -102,6 +102,9 @@ const char index_html[] PROGMEM = R"rawliteral(
     .grid-container.quad {
       grid-template-columns: repeat(4, 1fr);
     }
+    .grid-container.send {
+      grid-template-columns: repeat(2, 1fr);
+    }
     button {
       width: 100%;
       height: 50px;
@@ -123,6 +126,24 @@ const char index_html[] PROGMEM = R"rawliteral(
     button:active {
       background-color: #6bc0ae;
       transform: translateY(0);
+    }
+    .br-container {
+      display: block;
+    }
+    #textInput {
+      width: 95%;
+      height: 50px;
+      resize: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+      font-size: 25px;
+    }
+    .right-align {
+        text-align: right;
+        color: #888;
+        font-size: 15px;
+        padding-right: 10px;
     }
     .language-selector-container {
       position: absolute;
@@ -178,6 +199,9 @@ const char index_html[] PROGMEM = R"rawliteral(
       .grid-container.triple,
       .grid-container.quad {
         grid-template-columns: 1fr;
+      }
+      .br-container {
+        display: none;
       }
     }
     @media (hover: none) {   /* 触摸设备的样式 */
@@ -238,7 +262,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     <div class="grid-container triple">
       <button type="button" onclick="sendCommand(5)">V-</button>
       <button type="button" onclick="sendCommand(6)">V+</button>
-      <button type="button" onclick="sendCommand(7)">Pause/Play</button>
+      <button type="button" onclick="sendCommand(7)">Pause/Play</button>  
     </div>
 
     <div class="grid-container quad">
@@ -246,6 +270,17 @@ const char index_html[] PROGMEM = R"rawliteral(
       <button type="button" onclick="sendCommand(9)">Alt+Tab</button>
       <button type="button" onclick="sendCommand(10)">Alt+F4</button>
       <button type="button" onclick="sendCommand(11)">Enter</button>
+    </div>
+    
+    <div class="br-container"><br></div>
+    <h4 id="text-input">Text Input</h4>
+
+    <textarea id="textInput" rows="10" maxlength="300" oninput="restrictInput(this)"></textarea>
+    <div id="charCount" class="right-align">0 / 18</div>
+
+    <div class="grid-container send">
+      <button id="send" type="button">Send</button>
+      <button type="button" onclick="sendCommand(12)">Backspace</button>
     </div>
 
     <h6 id="disclaimer">*The above function keys are available only when Bluetooth is connected and remote control is not locked.</h6>
@@ -262,7 +297,46 @@ const char index_html[] PROGMEM = R"rawliteral(
       xhr.open("GET", "/sendCommand?button=" + buttonNumber, true);
       xhr.send();
     }
-    
+
+    // 文本输入
+    document.getElementById('send').addEventListener('click', function() {
+      var text = document.getElementById('textInput').value;
+      fetch('/sendText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'text=' + encodeURIComponent(text)
+      })
+      .then(response => response.text())
+      .then(data => {
+        console.log(data);
+        document.getElementById('textInput').value = ''; // 清除文本输入框
+        var counterElement = document.getElementById('charCount');// 清除字符计数器
+        counterElement.textContent = '0 / 18';
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+      });
+    });
+
+    //字符输入限制
+    function restrictInput(element) {
+    // 移除换行符
+    element.value = element.value.replace(/[\r\n\v]+/g, '');
+    // 限制输入为ASCII字符
+    element.value = element.value.replace(/[^\x00-\x7F]+/g, '');
+    // 限制最多输入18个字符
+    var maxLength = 18;
+      if (element.value.length > maxLength) {
+        element.value = element.value.slice(0, maxLength);
+      }
+    // 更新字符计数器
+    var currentLength = element.value.length;
+    var counterElement = document.getElementById('charCount');
+    counterElement.textContent = currentLength + ' / ' + maxLength;
+    }
+
     // 默认语言为英语
     let currentLanguage = 'en';
 
@@ -302,78 +376,104 @@ const char index_html[] PROGMEM = R"rawliteral(
           'title': 'Remote control Wifi控制',
           'subtitle': '您已启用Remote control的wifi控制功能，可以通过此页面进行遥控。',
           'function-keys': '可用功能键',
-          'disclaimer': '*以上功能键仅在蓝牙连接且远程控制未锁定时可用。'
+          'text-input': '文本输入',
+          'send': '发送',
+          'disclaimer': '*以上功能仅在蓝牙连接且远程控制未锁定时可用。'
         },
         'zh-TW-MO-HK': {
           'title': 'Remote control Wifi控制',
           'subtitle': '您已啟用Remote control的wifi控制功能，可以透過此頁面進行遙控。',
           'function-keys': '可用功能鍵',
-          'disclaimer': '*以上功能鍵僅在藍牙連接且遠程控制未鎖定時可用。'
+          'text-input': '文本輸入',
+          'send': '發送',
+          'disclaimer': '*以上功能僅在藍牙連接且遠程控制未鎖定時可用。'
         },
         'en': {
           'title': 'Remote control Wifi Control',
           'subtitle': 'You have enabled wifi control for Remote control, and you can operate it remotely through this page.',
           'function-keys': 'Available Function Keys',
-          'disclaimer': '*The above function keys are available only when Bluetooth is connected and remote control is not locked.'
+          'text-input': 'Text Input',
+          'send': 'Send',
+          'disclaimer': '*The above function are available only when Bluetooth is connected and remote control is not locked.'
         },
         'es': {
           'title': 'Control remoto de Wifi',
           'subtitle': 'Ha habilitado el control wifi para Remote control, y puede operarlo de forma remota a través de esta página.',
           'function-keys': 'Teclas de función disponibles',
+          'text-input': 'Entrada de texto',
+          'send': 'Enviar',
           'disclaimer': '*Las teclas de función anteriores solo están disponibles cuando Bluetooth está conectado y el control remoto no está bloqueado.'
         },
         'fr': {
           'title': 'Contrôle à distance du Wifi',
           'subtitle': 'Vous avez activé le contrôle wifi pour Remote control, et vous pouvez l\'utiliser à distance via cette page.',
           'function-keys': 'Touches de fonction disponibles',
+          'text-input': 'Zone de texte',
+          'send': 'Envoyer',
           'disclaimer': '*Les touches de fonction ci-dessus ne sont disponibles que lorsque le Bluetooth est connecté et que la télécommande n\'est pas verrouillée.'
         },
         'de': {
           'title': 'Fernbedienung Wifi Steuerung',
           'subtitle': 'Sie haben die WLAN-Steuerung für Remote control aktiviert und können diese über diese Seite fernsteuern.',
           'function-keys': 'Verfügbare Funktionstasten',
+          'text-input': 'Texteingabe',
+          'send': 'Senden',
           'disclaimer': '*Die oben genannten Funktionstasten sind nur verfügbar, wenn Bluetooth verbunden ist und die Fernbedienung nicht gesperrt ist.'
         },
         'pt': {
           'title': 'Controle remoto do Wifi',
           'subtitle': 'Você habilitou o controle wifi para Remote control e pode operá-lo remotamente através desta página.',
           'function-keys': 'Teclas de função disponíveis',
+          'text-input': 'Entrada de texto',
+          'send': 'Enviar',
           'disclaimer': '*As teclas de função acima estão disponíveis apenas quando o Bluetooth está conectado e o controle remoto não está bloqueado.'
         },
         'ja': {
           'title': 'リモートコントロールWifi制御',
           'subtitle': 'あなたはRemote controlのwifi制御を有効にし、このページを通じてリモートで操作することができます。',
           'function-keys': '利用可能な機能キー',
+          'text-input': 'テキスト入力',
+          'send': '送信',
           'disclaimer': '*上記の機能キーは、Bluetoothが接続されており、リモートコントロールがロックされていない場合にのみ使用できます。'
         },
         'ru': {
           'title': 'Удаленное управление Wifi',
           'subtitle': 'Вы активировали беспроводное управление для Remote control, и можете управлять им удаленно через эту страницу.',
           'function-keys': 'Доступные функциональные клавиши',
+          'text-input': 'Текстовое поле',
+          'send': 'Отправить',
           'disclaimer': '*Вышеуказанные функциональные клавиши доступны только при подключенном Bluetooth и не заблокированном удаленном управлении.'
         },
         'it': {
           'title': 'Controllo remoto Wifi',
           'subtitle': 'Hai abilitato il controllo wifi per Remote control e puoi utilizzarlo in remoto tramite questa pagina.',
           'function-keys': 'Tasti funzione disponibili',
+          'text-input': 'Inserimento di testo',
+          'send': 'Invia',
           'disclaimer': '*I tasti funzione sopra indicati sono disponibili solo quando il Bluetooth è collegato e il controllo remoto non è bloccato.'
         },
         'nl': {
           'title': 'Wifi Afstandsbediening',
           'subtitle': 'U heeft de wifi-bediening voor Remote control ingeschakeld en u kunt deze op afstand bedienen via deze pagina.',
           'function-keys': 'Beschikbare functietoetsen',
+          'text-input': 'Tekstinvoer',
+          'send': 'Verzenden',
           'disclaimer': '*De bovenstaande functietoetsen zijn alleen beschikbaar wanneer Bluetooth is verbonden en de afstandsbediening niet is vergrendeld.'
         },
         'ko': {
           'title': '리모컨 Wifi 제어',
           'subtitle': '리모컨의 wifi 제어를 활성화했으며, 이 페이지를 통해 원격으로 조작할 수 있습니다.',
           'function-keys': '사용 가능한 기능 키',
+          'text-input': '텍스트 입력',
+          'send': '보내기',
           'disclaimer': '*위의 기능 키는 블루투스가 연결되고 원격 제어가 잠기지 않은 경우에만 사용할 수 있습니다.',
         },
         'ar': {
           'title': 'التحكم عن بعد عبر Wifi',
           'subtitle': 'لقد قمت بتمكين التحكم عبر wifi للتحكم عن بعد، ويمكنك تشغيله عن بُعد من خلال هذه الصفحة.',
           'function-keys': 'مفاتيح الوظائف المتاحة',
+          'text-input': 'إدخال نص',
+          'send': 'إرسال',
           'disclaimer': '*المفاتيح الوظيفية المذكورة أعلاه متاحة فقط عند اتصال البلوتوث وعدم قفل التحكم عن بُعد.',
         }
         // 多语言翻译
@@ -446,7 +546,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         languageCode = 'ar'; // 阿拉伯语
         break;
       default:
-        languageCode = 'ar'; // 默认为英语
+        languageCode = 'en'; // 默认为英语
         break;
     }
 
@@ -547,12 +647,13 @@ void Custom_characters(int Type) {       //自定义字符
   
   switch(Type){       //类型切换
   case 0:
-    LCD_Makechar(0, CG_dat1);     //输出0x0-0x5
+    LCD_Makechar(0, CG_dat1);     //输出0x0-0x6
     LCD_Makechar(1, CG_dat2);
     LCD_Makechar(2, CG_dat3);
     LCD_Makechar(3, CG_dat4);
     LCD_Makechar(4, CG_dat5);
     LCD_Makechar(5, CG_dat6);
+    LCD_Makechar(6, CG_dat18);
     break;
   case 1:
     LCD_Makechar(0, CG_dat9);     //输出0x0-0x7
@@ -720,25 +821,42 @@ void Display_last(int iK_last, int iT_last){
     case 11:
       LCD_Write(0x1, 1);      //ALT+Tab
       LCD_Print("+Tab");
+      break;
+    case 12:
+      LCD_Write(0x6, 1);      //Backspace
+      break;
+    case 13:
+      LCD_Print("(Text)");    // 文本内容
     }
   }
 }
 
 //**********************************************Wifi遥控函数开始**********************************************
-void Config_Callback(AsyncWebServerRequest *request){        // 下发处理回调函数
-  if (request->hasParam("value")) // 如果有值下发
-  {
-    String HTTP_Payload = request->getParam("value")->value();    // 获取下发的数据
+volatile bool isBusy = false; // 定义一个忙标志位
+String receivedText = "";     // 用于存储接收到的文本
+
+void Config_Callback(AsyncWebServerRequest *request){  // 下发处理回调函数
+  if (isBusy) {
+    request->send(200, "text/plain", "BUSY"); // 如果忙，返回忙碌状态
+    return;
+  }
+  if (request->hasParam("value")) { // 如果有值下发
+    String HTTP_Payload = request->getParam("value")->value(); // 获取下发的数据
     Serial.printf("[%lu]%s\r\n", millis(), HTTP_Payload.c_str()); // 打印调试信息
   }
   request->send(200, "text/plain", "OK"); // 发送接收成功标志符
 }
 
 void sendCommand_Callback(AsyncWebServerRequest *request){       // 处理按钮按下的回调函数
+  if (isBusy) {
+    request->send(200, "text/plain", "BUSY"); // 如果忙，返回忙碌状态
+    return;
+  }
   if (request->hasParam("button")) {
     int buttonNumber = request->getParam("button")->value().toInt();
-    if(Lock == 0 && bleKeyboard.isConnected()){     //判断是否应控制
-      switch(buttonNumber){
+    if (Lock == 0 && bleKeyboard.isConnected()) { // 判断是否应控制
+      isBusy = true; // 设置忙标志位
+      switch (buttonNumber) {
       case 1:
           bleKeyboard.press(KEY_UP_ARROW);
           bleKeyboard.releaseAll();
@@ -858,6 +976,17 @@ void sendCommand_Callback(AsyncWebServerRequest *request){       // 处理按钮
           S_last(3, 8);
           Keys_Press_Count(18, 0);
           Keys_Press_Count(18, 1);
+          break;
+      case 12:
+          bleKeyboard.press(KEY_BACKSPACE);
+          bleKeyboard.releaseAll();
+          Serial.println("Wifi_Backspace");
+          LED1_2_Countrl(2, 1);
+          delay(Key_wifi);
+          LED1_2_Countrl(2, 0);     
+          S_last(12, 8);
+          Keys_Press_Count(19, 0);
+          Keys_Press_Count(19, 1);
       }
     }else{
       FlashLED_3();
@@ -872,11 +1001,54 @@ void sendCommand_Callback(AsyncWebServerRequest *request){       // 处理按钮
         }
       }
     }
+    isBusy = false; // 清除忙标志位
     request->send(200, "text/plain", "OK"); // 发送接收成功标志符
     return;
   }
   request->send(400, "text/plain", "Bad Request"); // 发送错误响应
 }
+
+// 文本发送功能部分
+void sendtextCommand_callback(AsyncWebServerRequest *request){ 
+  if (isBusy) {
+    request->send(200, "text/plain", "BUSY"); // 如果忙，返回忙碌状态
+    return;
+  }
+  
+
+  if (request->hasParam("text", true)) {
+    if (Lock == 0 && bleKeyboard.isConnected()) { // 判断是否应控制
+      receivedText = request->getParam("text", true)->value();
+      isBusy = true;
+
+      LED1_2_Countrl(2, 1);
+      bleKeyboard.print(receivedText);
+      Serial.println("Wifi_Text: " + receivedText);
+      delay(Key_wifi);
+      LED1_2_Countrl(2, 0); 
+      S_last(13, 8);
+      Keys_Press_Count(20, 0);
+      Keys_Press_Count(20, 1);
+
+      isBusy = false;
+    }else{      // 如果不应该控制
+      FlashLED_3();
+      if(Settings_Opened == 0 && bleKeyboard.isConnected()){     //如果不在设置页面且BLE已连接（主页）
+        for (int i = 0; i < 2; i++) {
+          LCD_SetCursor(1, 5);
+          LCD_Print("    ");
+          delay(300);
+          LCD_SetCursor(1, 5);
+          LCD_Print("Lock");
+          delay(300); 
+        }
+      }
+    }
+    request->send(200, "text/plain", "OK");
+  }else{
+    request->send(400, "text/plain", "No text provided");
+  }
+};
 
 void generateWifiPassword(){      // 生成随机 WiFi 密码的函数
   const char charset[] = "abcdefghijklmnopqrstuvwxyz0123456789";  // 字符集合，包含小写字母和数字
@@ -906,6 +1078,7 @@ void Wifi_Control(int WifiC){     //Wifi控制
               { request->send_P(200, "text/html", index_html); });
     
     server.on("/sendCommand", HTTP_GET, sendCommand_Callback); // 绑定按钮按下的处理函数
+    server.on("/sendText", HTTP_POST, sendtextCommand_callback);
     server.on("/Up", HTTP_GET, Config_Callback);   // 绑定配置下发的处理函数
     server.begin();  // 初始化HTTP服务器
     IPAddress IP = WiFi.softAPIP();
@@ -1933,8 +2106,8 @@ void sendInputBuffer() {      //摩斯密码解析发送
           outputString = letters[i];
         }
           bleKeyboard.releaseAll();
-          Keys_Press_Count(19, 0);
-          Keys_Press_Count(19, 1);
+          Keys_Press_Count(21, 0);
+          Keys_Press_Count(21, 1);
           LED1_2_Countrl(2, 1);     //闪发送灯
           delay(300);
           LED1_2_Countrl(2, 0);
