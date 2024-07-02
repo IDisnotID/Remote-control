@@ -1,2 +1,3 @@
 0x64		OK
 0x65		BLE offline too much time, check your connected device
+0x66		Remote control function is locked
