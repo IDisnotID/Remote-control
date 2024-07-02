@@ -17,7 +17,7 @@ const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 unsigned long lastDisconnectTime = 0;     //记录最后一次BLE掉线的时间
 
-char version[] = "2.3.30";          //*************************版本信息*************************
+char version[] = "2.3.33";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -42,7 +42,7 @@ String inputBuffer = ""; // 输入缓冲区
 String lastinputBuffer = ""; // 上一个输入
 
 
-BleKeyboard bleKeyboard("Remote control", "ID_Devices", 100);        //实例化BleKeyboard对象，“Remote control”为键盘名称；"ID_Devices"为制造商
+BleKeyboard bleKeyboard("Remote control", "ID_Inc.", 100);        //实例化BleKeyboard对象，“Remote control”为键盘名称；"ID_Inc."为制造商
 void(* resetFunc) (void) = 0;     //重启函数声明
 
 //****************************************************************Wifi Web Page定义****************************************************************
@@ -103,7 +103,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       grid-template-columns: repeat(4, 1fr);
     }
     .grid-container.send {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
     }
     button {
       width: 100%;
@@ -132,12 +132,12 @@ const char index_html[] PROGMEM = R"rawliteral(
     }
     #textInput {
       width: 95%;
-      height: 50px;
+      height: 150px;
       resize: none;
       border-radius: 8px;
       padding: 10px;
       font-family: Arial, sans-serif;
-      font-size: 25px;
+      font-size: 20px;
     }
     .right-align {
         text-align: right;
@@ -226,7 +226,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   <div class="container">
     <div class="language-selector-container">
       <!-- 语言选择器 -->
-      <select class="language-selector" onchange="switchLanguage(this.value)">
+      <select id="languageSelect" class="language-selector" onchange="switchLanguage(this.value)" title="Language">
         <option value="en">English</option>
         <option value="es">Español</option>
         <option value="fr">Français</option>
@@ -275,12 +275,13 @@ const char index_html[] PROGMEM = R"rawliteral(
     <div class="br-container"><br></div>
     <h4 id="text-input">Text Input</h4>
 
-    <textarea id="textInput" rows="10" maxlength="300" oninput="restrictInput(this)"></textarea>
-    <div id="charCount" class="right-align">0 / 18</div>
+    <textarea id="textInput" rows="10" oninput="restrictInput(this)" placeholder="Please enter the text you want to send"></textarea>
+    <div id="charCount" class="right-align">0 / 200</div>
 
     <div class="grid-container send">
       <button id="send" type="button">Send</button>
       <button type="button" onclick="sendCommand(12)">Backspace</button>
+      <button type="button" onclick="sendCommand(13)">Shift</button>
     </div>
 
     <h6 id="disclaimer">*The above function keys are available only when Bluetooth is connected and remote control is not locked.</h6>
@@ -291,11 +292,25 @@ const char index_html[] PROGMEM = R"rawliteral(
   </div>
 
   <script>
-    // 按下按钮会运行这个JS函数
+    // 按钮处理
     function sendCommand(buttonNumber) {
-      var xhr = new XMLHttpRequest();
-      xhr.open("GET", "/sendCommand?button=" + buttonNumber, true);
-      xhr.send();
+      fetch('/sendCommand?button=' + buttonNumber, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+          'Cache-Control': 'no-cache' // 设置 Cache-Control 头部
+        }
+      })
+      .then(response => response.text())
+      .then(data => {
+        if (data === 'ERROR') {
+          alert(translations[currentLanguage]['alertMessage']);  // 弹窗提示设备状态错误
+        }
+        console.log(data);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
     }
 
     // 文本输入
@@ -304,16 +319,22 @@ const char index_html[] PROGMEM = R"rawliteral(
       fetch('/sendText', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+          'Cache-Control': 'no-cache', // 设置 Cache-Control 头部
         },
         body: 'text=' + encodeURIComponent(text)
       })
       .then(response => response.text())
       .then(data => {
+        if (data === 'CLEAR') {
+          document.getElementById('textInput').value = ''; // 清除文本输入框
+          var counterElement = document.getElementById('charCount');// 清除字符计数器
+          counterElement.textContent = '0 / 200';
+          counterElement.style.color = '#888';
+        } else if (data === 'ERROR') {
+          alert(translations[currentLanguage]['alertMessage']); // 弹窗提示设备状态错误
+        }
         console.log(data);
-        document.getElementById('textInput').value = ''; // 清除文本输入框
-        var counterElement = document.getElementById('charCount');// 清除字符计数器
-        counterElement.textContent = '0 / 18';
       })
       .catch((error) => {
         console.error('Error:', error);
@@ -322,20 +343,25 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     //字符输入限制
     function restrictInput(element) {
-    // 移除换行符
-    element.value = element.value.replace(/[\r\n\v]+/g, '');
-    // 限制输入为ASCII字符
-    element.value = element.value.replace(/[^\x00-\x7F]+/g, '');
-    // 限制最多输入18个字符
-    var maxLength = 18;
+      // 限制输入为ASCII字符
+      element.value = element.value.replace(/[^\x00-\x7F]+/g, '');
+      // 限制最多输入200个字符
+      var maxLength = 200;
       if (element.value.length > maxLength) {
         element.value = element.value.slice(0, maxLength);
       }
-    // 更新字符计数器
-    var currentLength = element.value.length;
-    var counterElement = document.getElementById('charCount');
-    counterElement.textContent = currentLength + ' / ' + maxLength;
+      // 更新字符计数器
+      var currentLength = element.value.length;
+      var counterElement = document.getElementById('charCount');
+      counterElement.textContent = currentLength + ' / ' + maxLength;
+      // 如果达到最大字符数限制，将计数器字体颜色设置为红色
+      if (currentLength >= maxLength) {
+          counterElement.style.color = 'red';
+      } else {
+          counterElement.style.color = '#888'; // 恢复为灰色
+      }
     }
+
 
     // 默认语言为英语
     let currentLanguage = 'en';
@@ -345,6 +371,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       currentLanguage = language;
       updateTextContent(); // 更新文本内容，包括标题
       updateTitle(); // 更新页面标题
+      updateHtmlLangAttribute(); // 更新html标签的lang属性
     }
 
     // 更新页面标题函数
@@ -369,116 +396,160 @@ const char index_html[] PROGMEM = R"rawliteral(
       document.title = translations[currentLanguage];
     }
 
-    // 更新文本内容函数
-    function updateTextContent() {
-      const translations = {
-        'zh-CN': {
-          'title': 'Remote control Wifi控制',
-          'subtitle': '您已启用Remote control的wifi控制功能，可以通过此页面进行遥控。',
-          'function-keys': '可用功能键',
-          'text-input': '文本输入',
-          'send': '发送',
-          'disclaimer': '*以上功能仅在蓝牙连接且远程控制未锁定时可用。'
-        },
-        'zh-TW-MO-HK': {
-          'title': 'Remote control Wifi控制',
-          'subtitle': '您已啟用Remote control的wifi控制功能，可以透過此頁面進行遙控。',
-          'function-keys': '可用功能鍵',
-          'text-input': '文本輸入',
-          'send': '發送',
-          'disclaimer': '*以上功能僅在藍牙連接且遠程控制未鎖定時可用。'
-        },
-        'en': {
-          'title': 'Remote control Wifi Control',
-          'subtitle': 'You have enabled wifi control for Remote control, and you can operate it remotely through this page.',
-          'function-keys': 'Available Function Keys',
-          'text-input': 'Text Input',
-          'send': 'Send',
-          'disclaimer': '*The above function are available only when Bluetooth is connected and remote control is not locked.'
-        },
-        'es': {
-          'title': 'Control remoto de Wifi',
-          'subtitle': 'Ha habilitado el control wifi para Remote control, y puede operarlo de forma remota a través de esta página.',
-          'function-keys': 'Teclas de función disponibles',
-          'text-input': 'Entrada de texto',
-          'send': 'Enviar',
-          'disclaimer': '*Las teclas de función anteriores solo están disponibles cuando Bluetooth está conectado y el control remoto no está bloqueado.'
-        },
-        'fr': {
-          'title': 'Contrôle à distance du Wifi',
-          'subtitle': 'Vous avez activé le contrôle wifi pour Remote control, et vous pouvez l\'utiliser à distance via cette page.',
-          'function-keys': 'Touches de fonction disponibles',
-          'text-input': 'Zone de texte',
-          'send': 'Envoyer',
-          'disclaimer': '*Les touches de fonction ci-dessus ne sont disponibles que lorsque le Bluetooth est connecté et que la télécommande n\'est pas verrouillée.'
-        },
-        'de': {
-          'title': 'Fernbedienung Wifi Steuerung',
-          'subtitle': 'Sie haben die WLAN-Steuerung für Remote control aktiviert und können diese über diese Seite fernsteuern.',
-          'function-keys': 'Verfügbare Funktionstasten',
-          'text-input': 'Texteingabe',
-          'send': 'Senden',
-          'disclaimer': '*Die oben genannten Funktionstasten sind nur verfügbar, wenn Bluetooth verbunden ist und die Fernbedienung nicht gesperrt ist.'
-        },
-        'pt': {
-          'title': 'Controle remoto do Wifi',
-          'subtitle': 'Você habilitou o controle wifi para Remote control e pode operá-lo remotamente através desta página.',
-          'function-keys': 'Teclas de função disponíveis',
-          'text-input': 'Entrada de texto',
-          'send': 'Enviar',
-          'disclaimer': '*As teclas de função acima estão disponíveis apenas quando o Bluetooth está conectado e o controle remoto não está bloqueado.'
-        },
-        'ja': {
-          'title': 'リモートコントロールWifi制御',
-          'subtitle': 'あなたはRemote controlのwifi制御を有効にし、このページを通じてリモートで操作することができます。',
-          'function-keys': '利用可能な機能キー',
-          'text-input': 'テキスト入力',
-          'send': '送信',
-          'disclaimer': '*上記の機能キーは、Bluetoothが接続されており、リモートコントロールがロックされていない場合にのみ使用できます。'
-        },
-        'ru': {
-          'title': 'Удаленное управление Wifi',
-          'subtitle': 'Вы активировали беспроводное управление для Remote control, и можете управлять им удаленно через эту страницу.',
-          'function-keys': 'Доступные функциональные клавиши',
-          'text-input': 'Текстовое поле',
-          'send': 'Отправить',
-          'disclaimer': '*Вышеуказанные функциональные клавиши доступны только при подключенном Bluetooth и не заблокированном удаленном управлении.'
-        },
-        'it': {
-          'title': 'Controllo remoto Wifi',
-          'subtitle': 'Hai abilitato il controllo wifi per Remote control e puoi utilizzarlo in remoto tramite questa pagina.',
-          'function-keys': 'Tasti funzione disponibili',
-          'text-input': 'Inserimento di testo',
-          'send': 'Invia',
-          'disclaimer': '*I tasti funzione sopra indicati sono disponibili solo quando il Bluetooth è collegato e il controllo remoto non è bloccato.'
-        },
-        'nl': {
-          'title': 'Wifi Afstandsbediening',
-          'subtitle': 'U heeft de wifi-bediening voor Remote control ingeschakeld en u kunt deze op afstand bedienen via deze pagina.',
-          'function-keys': 'Beschikbare functietoetsen',
-          'text-input': 'Tekstinvoer',
-          'send': 'Verzenden',
-          'disclaimer': '*De bovenstaande functietoetsen zijn alleen beschikbaar wanneer Bluetooth is verbonden en de afstandsbediening niet is vergrendeld.'
-        },
-        'ko': {
-          'title': '리모컨 Wifi 제어',
-          'subtitle': '리모컨의 wifi 제어를 활성화했으며, 이 페이지를 통해 원격으로 조작할 수 있습니다.',
-          'function-keys': '사용 가능한 기능 키',
-          'text-input': '텍스트 입력',
-          'send': '보내기',
-          'disclaimer': '*위의 기능 키는 블루투스가 연결되고 원격 제어가 잠기지 않은 경우에만 사용할 수 있습니다.',
-        },
-        'ar': {
-          'title': 'التحكم عن بعد عبر Wifi',
-          'subtitle': 'لقد قمت بتمكين التحكم عبر wifi للتحكم عن بعد، ويمكنك تشغيله عن بُعد من خلال هذه الصفحة.',
-          'function-keys': 'مفاتيح الوظائف المتاحة',
-          'text-input': 'إدخال نص',
-          'send': 'إرسال',
-          'disclaimer': '*المفاتيح الوظيفية المذكورة أعلاه متاحة فقط عند اتصال البلوتوث وعدم قفل التحكم عن بُعد.',
-        }
-        // 多语言翻译
-      };
+    // 更新HTML标签的lang属性
+    function updateHtmlLangAttribute() {
+      document.documentElement.lang = currentLanguage;
+    }
 
+    // 更新文本内容函数
+    const translations = {
+      'zh-CN': {
+        'title': 'Remote control Wifi控制',
+        'subtitle': '您已启用Remote control的wifi控制功能，可以通过此页面进行遥控。',
+        'function-keys': '可用功能键',
+        'text-input': '文本输入',
+        'send': '发送',
+        'selector_title': '语言',
+        'alertMessage': '设备状态错误，命令未成功执行。 (0x66)',
+        'sendtip': '请输入你要发送的文本',
+        'disclaimer': '*以上功能仅在蓝牙连接且远程控制未锁定时可用。'
+      },
+      'zh-TW-MO-HK': {
+        'title': 'Remote control Wifi控制',
+        'subtitle': '您已啟用Remote control的wifi控制功能，可以透過此頁面進行遙控。',
+        'function-keys': '可用功能鍵',
+        'text-input': '文本輸入',
+        'send': '發送',
+        'selector_title': '語言',
+        'alertMessage': '設備狀態錯誤，命令未成功執行。 (0x66)',
+        'sendtip': '請輸入您要發送的文本',
+        'disclaimer': '*以上功能僅在藍牙連接且遠程控制未鎖定時可用。'
+      },
+      'en': {
+        'title': 'Remote control Wifi Control',
+        'subtitle': 'You have enabled wifi control for Remote control, and you can operate it remotely through this page.',
+        'function-keys': 'Available Function Keys',
+        'text-input': 'Text Input',
+        'send': 'Send',
+        'selector_title': 'Language',
+        'alertMessage': 'Device status error, command not executed successfully. (0x66)',
+        'sendtip': 'Please enter the text you want to send',
+        'disclaimer': '*The above function are available only when Bluetooth is connected and remote control is not locked.'
+      },
+      'es': {
+        'title': 'Control remoto de Wifi',
+        'subtitle': 'Ha habilitado el control wifi para Remote control, y puede operarlo de forma remota a través de esta página.',
+        'function-keys': 'Teclas de función disponibles',
+        'text-input': 'Entrada de texto',
+        'send': 'Enviar',
+        'selector_title': 'Idioma',
+        'alertMessage': 'Error de estado del dispositivo, comando no ejecutado correctamente. (0x66)',
+        'sendtip': 'Por favor, ingrese el texto que desea enviar',
+        'disclaimer': '*Las teclas de función anteriores solo están disponibles cuando Bluetooth está conectado y el control remoto no está bloqueado.'
+      },
+      'fr': {
+        'title': 'Contrôle à distance du Wifi',
+        'subtitle': 'Vous avez activé le contrôle wifi pour Remote control, et vous pouvez l\'utiliser à distance via cette page.',
+        'function-keys': 'Touches de fonction disponibles',
+        'text-input': 'Zone de texte',
+        'send': 'Envoyer',
+        'selector_title': 'Langue',
+        'alertMessage': 'Erreur d\'état du périphérique, commande non exécutée avec succès. (0x66)',
+        'sendtip': 'Veuillez saisir le texte que vous souhaitez envoyer',
+        'disclaimer': '*Les touches de fonction ci-dessus ne sont disponibles que lorsque le Bluetooth est connecté et que la télécommande n\'est pas verrouillée.'
+      },
+      'de': {
+        'title': 'Fernbedienung Wifi Steuerung',
+        'subtitle': 'Sie haben die WLAN-Steuerung für Remote control aktiviert und können diese über diese Seite fernsteuern.',
+        'function-keys': 'Verfügbare Funktionstasten',
+        'text-input': 'Texteingabe',
+        'send': 'Senden',
+        'selector_title': 'Sprache',
+        'alertMessage': 'Gerätestatusfehler, Befehl wurde nicht erfolgreich ausgeführt. (0x66)',
+        'sendtip': 'Bitte geben Sie den Text ein, den Sie senden möchten',
+        'disclaimer': '*Die oben genannten Funktionstasten sind nur verfügbar, wenn Bluetooth verbunden ist und die Fernbedienung nicht gesperrt ist.'
+      },
+      'pt': {
+        'title': 'Controle remoto do Wifi',
+        'subtitle': 'Você habilitou o controle wifi para Remote control e pode operá-lo remotamente através desta página.',
+        'function-keys': 'Teclas de função disponíveis',
+        'text-input': 'Entrada de texto',
+        'send': 'Enviar',
+        'selector_title': 'Idioma',
+        'alertMessage': 'Erro de status do dispositivo, comando não executado com sucesso. (0x66)',
+        'sendtip': 'Por favor, digite o texto que deseja enviar',
+        'disclaimer': '*As teclas de função acima estão disponíveis apenas quando o Bluetooth está conectado e o controle remoto não está bloqueado.'
+      },
+      'ja': {
+        'title': 'リモートコントロールWifi制御',
+        'subtitle': 'あなたはRemote controlのwifi制御を有効にし、このページを通じてリモートで操作することができます。',
+        'function-keys': '利用可能な機能キー',
+        'text-input': 'テキスト入力',
+        'send': '送信',
+        'selector_title': '言語',
+        'alertMessage': 'デバイスの状態エラー、コマンドが正常に実行されませんでした。 (0x66)',
+        'sendtip': '送信するテキストを入力してください',
+        'disclaimer': '*上記の機能キーは、Bluetoothが接続されており、リモートコントロールがロックされていない場合にのみ使用できます。'
+      },
+      'ru': {
+        'title': 'Удаленное управление Wifi',
+        'subtitle': 'Вы активировали беспроводное управление для Remote control, и можете управлять им удаленно через эту страницу.',
+        'function-keys': 'Доступные функциональные клавиши',
+        'text-input': 'Текстовое поле',
+        'send': 'Отправить',
+        'selector_title': 'Язык',
+        'alertMessage': 'Ошибка состояния устройства, команда не выполнена успешно. (0x66)',
+        'sendtip': 'Пожалуйста, введите текст, который вы хотите отправить',
+        'disclaimer': '*Вышеуказанные функциональные клавиши доступны только при подключенном Bluetooth и не заблокированном удаленном управлении.'
+      },
+      'it': {
+        'title': 'Controllo remoto Wifi',
+        'subtitle': 'Hai abilitato il controllo wifi per Remote control e puoi utilizzarlo in remoto tramite questa pagina.',
+        'function-keys': 'Tasti funzione disponibili',
+        'text-input': 'Inserimento di testo',
+        'send': 'Invia',
+        'selector_title': 'Lingua',
+        'alertMessage': 'Errore di stato del dispositivo, comando non eseguito con successo. (0x66)',
+        'sendtip': 'Inserisci il testo che desideri inviare',
+        'disclaimer': '*I tasti funzione sopra indicati sono disponibili solo quando il Bluetooth è collegato e il controllo remoto non è bloccato.'
+      },
+      'nl': {
+        'title': 'Wifi Afstandsbediening',
+        'subtitle': 'U heeft de wifi-bediening voor Remote control ingeschakeld en u kunt deze op afstand bedienen via deze pagina.',
+        'function-keys': 'Beschikbare functietoetsen',
+        'text-input': 'Tekstinvoer',
+        'send': 'Verzenden',
+        'selector_title': 'Taal',
+        'alertMessage': 'Apparaatstatusfout, opdracht niet succesvol uitgevoerd. (0x66)',
+        'sendtip': 'Voer de tekst in die je wilt verzenden',
+        'disclaimer': '*De bovenstaande functietoetsen zijn alleen beschikbaar wanneer Bluetooth is verbonden en de afstandsbediening niet is vergrendeld.'
+      },
+      'ko': {
+        'title': '리모컨 Wifi 제어',
+        'subtitle': '리모컨의 wifi 제어를 활성화했으며, 이 페이지를 통해 원격으로 조작할 수 있습니다.',
+        'function-keys': '사용 가능한 기능 키',
+        'text-input': '텍스트 입력',
+        'send': '보내기',
+        'selector_title': '언어',
+        'alertMessage': '장치 상태 오류, 명령이 성공적으로 실행되지 않았습니다. (0x66)',
+        'sendtip': '전송하려는 텍스트를 입력하세요',
+        'disclaimer': '*위의 기능 키는 블루투스가 연결되고 원격 제어가 잠기지 않은 경우에만 사용할 수 있습니다.',
+      },
+      'ar': {
+        'title': 'التحكم عن بعد عبر Wifi',
+        'subtitle': 'لقد قمت بتمكين التحكم عبر wifi للتحكم عن بعد، ويمكنك تشغيله عن بُعد من خلال هذه الصفحة.',
+        'function-keys': 'مفاتيح الوظائف المتاحة',
+        'text-input': 'إدخال نص',
+        'send': 'إرسال',
+        'selector_title': 'اللغة',
+        'alertMessage': 'خطأ في حالة الجهاز، الأمر لم يتم تنفيذه بنجاح. (0x66)',
+        'sendtip': 'الرجاء إدخال النص الذي ترغب في إرساله',
+        'disclaimer': '*المفاتيح الوظيفية المذكورة أعلاه متاحة فقط عند اتصال البلوتوث وعدم قفل التحكم عن بُعد.',
+      }
+      // 多语言翻译
+    };
+
+    function updateTextContent() {
       // 更新页面上的文本内容
       Object.keys(translations[currentLanguage]).forEach(key => {
         const element = document.getElementById(key);
@@ -486,6 +557,16 @@ const char index_html[] PROGMEM = R"rawliteral(
           element.textContent = translations[currentLanguage][key];
         }
       });
+      // 更新 textarea 的 placeholder
+      const textInput = document.getElementById('textInput');
+      if (textInput) {
+        textInput.placeholder = translations[currentLanguage]['sendtip'];
+      }
+      // 更新 select 的 title
+      const languageSelect = document.getElementById('languageSelect');
+      if (languageSelect) {
+        languageSelect.title = translations[currentLanguage]['selector_title'];
+      }
     }
 
     // 更新版权年份
@@ -827,6 +908,9 @@ void Display_last(int iK_last, int iT_last){
       break;
     case 13:
       LCD_Print("(Text)");    // 文本内容
+      break;
+    case 14:
+      LCD_Write(0x2, 1);      //Shift
     }
   }
 }
@@ -987,9 +1071,21 @@ void sendCommand_Callback(AsyncWebServerRequest *request){       // 处理按钮
           S_last(12, 8);
           Keys_Press_Count(19, 0);
           Keys_Press_Count(19, 1);
+          break;
+      case 13:
+          bleKeyboard.press(KEY_LEFT_SHIFT);
+          bleKeyboard.releaseAll();
+          Serial.println("Wifi_Shift");
+          LED1_2_Countrl(2, 1);
+          delay(Key_wifi);
+          LED1_2_Countrl(2, 0);     
+          S_last(14, 8);
+          Keys_Press_Count(20, 0);
+          Keys_Press_Count(20, 1);
       }
     }else{
       FlashLED_3();
+      request->send(200, "text/plain", "ERROR"); // 返回设备状态错误信号
       if(Settings_Opened == 0 && bleKeyboard.isConnected()){     //如果不在设置页面且BLE已连接（主页）
         for (int i = 0; i < 2; i++) {
           LCD_SetCursor(1, 5);
@@ -1008,6 +1104,21 @@ void sendCommand_Callback(AsyncWebServerRequest *request){       // 处理按钮
   request->send(400, "text/plain", "Bad Request"); // 发送错误响应
 }
 
+// 发送字符串
+void sendTextOverBLE(String text) {
+  for (int i = 0; i < text.length(); i++) {
+    char c = text.charAt(i);
+    if (c == '\n') {
+      bleKeyboard.press(KEY_RETURN); // 发送换行符
+    } else {
+      bleKeyboard.press(c); // 发送字符
+    }
+    delay(15); // 等待一小段时间，确保字符发送完整
+    bleKeyboard.releaseAll(); // 释放按键状态，确保下一个字符不会受到影响
+    delay(15); // 等待一小段时间，确保释放操作完成
+  }
+}
+
 // 文本发送功能部分
 void sendtextCommand_callback(AsyncWebServerRequest *request){ 
   if (isBusy) {
@@ -1020,19 +1131,19 @@ void sendtextCommand_callback(AsyncWebServerRequest *request){
     if (Lock == 0 && bleKeyboard.isConnected()) { // 判断是否应控制
       receivedText = request->getParam("text", true)->value();
       isBusy = true;
-
       LED1_2_Countrl(2, 1);
-      bleKeyboard.print(receivedText);
+      sendTextOverBLE(receivedText);            // 发送文本到BLE
       Serial.println("Wifi_Text: " + receivedText);
-      delay(Key_wifi);
       LED1_2_Countrl(2, 0); 
       S_last(13, 8);
-      Keys_Press_Count(20, 0);
-      Keys_Press_Count(20, 1);
+      Keys_Press_Count(21, 0);
+      Keys_Press_Count(21, 1);
 
+      request->send(200, "text/plain", "CLEAR"); // 返回清空文本框信号
       isBusy = false;
     }else{      // 如果不应该控制
       FlashLED_3();
+      request->send(200, "text/plain", "ERROR"); // 返回设备状态错误信号
       if(Settings_Opened == 0 && bleKeyboard.isConnected()){     //如果不在设置页面且BLE已连接（主页）
         for (int i = 0; i < 2; i++) {
           LCD_SetCursor(1, 5);
@@ -2106,8 +2217,8 @@ void sendInputBuffer() {      //摩斯密码解析发送
           outputString = letters[i];
         }
           bleKeyboard.releaseAll();
-          Keys_Press_Count(21, 0);
-          Keys_Press_Count(21, 1);
+          Keys_Press_Count(22, 0);
+          Keys_Press_Count(22, 1);
           LED1_2_Countrl(2, 1);     //闪发送灯
           delay(300);
           LED1_2_Countrl(2, 0);
