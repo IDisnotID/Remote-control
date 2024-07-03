@@ -17,7 +17,7 @@ const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 unsigned long lastDisconnectTime = 0;     //记录最后一次BLE掉线的时间
 
-char version[] = "2.3.33";          //*************************版本信息*************************
+char version[] = "2.3.34";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -144,6 +144,61 @@ const char index_html[] PROGMEM = R"rawliteral(
         color: #888;
         font-size: 15px;
         padding-right: 10px;
+    }
+    body.no-scroll {
+      overflow: hidden;
+    }
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .overlay-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .spinner-container {
+      width: 50vw;
+      max-width: 500px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .spinner {
+      width: 100%;
+      height: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    .spinner::before {
+      content: "";
+      display: block;
+      position: absolute;
+      border-radius: 5px;
+      width: 100%;
+      height: 100%;
+      background-color: #6bc0ae;
+      animation: slide 2s cubic-bezier(0.7, 1, 0.3, 0.6) infinite;
+    }
+    @keyframes slide {
+      0% {
+        left: -100%;
+      }
+      50% {
+        left: 100%;
+      }
+      100% {
+        left: 100%;
+      }
     }
     .language-selector-container {
       position: absolute;
@@ -286,6 +341,15 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     <h6 id="disclaimer">*The above function keys are available only when Bluetooth is connected and remote control is not locked.</h6>
 
+    <div id="overlay" class="overlay">
+      <div class="overlay-content">
+        <h2 id="processing">Operation in progress...</h2>
+        <div class="spinner-container">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="copyright">
       Copyright&copy; 2020-<span id="currentYear"></span> ID_Inc. All rights reserved.
     </div>
@@ -315,31 +379,44 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     // 文本输入
     document.getElementById('send').addEventListener('click', function() {
+      showOverlay(); // Show the overlay when sending the command
       var text = document.getElementById('textInput').value;
       fetch('/sendText', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-          'Cache-Control': 'no-cache', // 设置 Cache-Control 头部
+          'Cache-Control': 'no-cache',
         },
         body: 'text=' + encodeURIComponent(text)
       })
       .then(response => response.text())
       .then(data => {
+        hideOverlay(); // Hide the overlay when the response is received
         if (data === 'CLEAR') {
-          document.getElementById('textInput').value = ''; // 清除文本输入框
-          var counterElement = document.getElementById('charCount');// 清除字符计数器
+          document.getElementById('textInput').value = '';
+          var counterElement = document.getElementById('charCount');
           counterElement.textContent = '0 / 200';
           counterElement.style.color = '#888';
         } else if (data === 'ERROR') {
-          alert(translations[currentLanguage]['alertMessage']); // 弹窗提示设备状态错误
+          alert(translations[currentLanguage]['alertMessage']);
         }
         console.log(data);
       })
       .catch((error) => {
+        hideOverlay(); // Hide the overlay in case of an error
         console.error('Error:', error);
       });
     });
+
+    // 叠加层控制
+    function showOverlay() {
+      document.getElementById('overlay').style.display = 'flex';
+      document.body.classList.add('no-scroll');
+    }
+    function hideOverlay() {
+      document.getElementById('overlay').style.display = 'none';
+      document.body.classList.remove('no-scroll');
+    }
 
     //字符输入限制
     function restrictInput(element) {
@@ -412,6 +489,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': '语言',
         'alertMessage': '设备状态错误，命令未成功执行。 (0x66)',
         'sendtip': '请输入你要发送的文本',
+        'processing': '操作进行中...',
         'disclaimer': '*以上功能仅在蓝牙连接且远程控制未锁定时可用。'
       },
       'zh-TW-MO-HK': {
@@ -423,6 +501,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': '語言',
         'alertMessage': '設備狀態錯誤，命令未成功執行。 (0x66)',
         'sendtip': '請輸入您要發送的文本',
+        'processing': '操作進行中...',
         'disclaimer': '*以上功能僅在藍牙連接且遠程控制未鎖定時可用。'
       },
       'en': {
@@ -434,6 +513,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'Language',
         'alertMessage': 'Device status error, command not executed successfully. (0x66)',
         'sendtip': 'Please enter the text you want to send',
+        'processing': 'Operation in progress...',
         'disclaimer': '*The above function are available only when Bluetooth is connected and remote control is not locked.'
       },
       'es': {
@@ -445,6 +525,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'Idioma',
         'alertMessage': 'Error de estado del dispositivo, comando no ejecutado correctamente. (0x66)',
         'sendtip': 'Por favor, ingrese el texto que desea enviar',
+        'processing': 'Operación en progreso...',
         'disclaimer': '*Las teclas de función anteriores solo están disponibles cuando Bluetooth está conectado y el control remoto no está bloqueado.'
       },
       'fr': {
@@ -456,6 +537,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'Langue',
         'alertMessage': 'Erreur d\'état du périphérique, commande non exécutée avec succès. (0x66)',
         'sendtip': 'Veuillez saisir le texte que vous souhaitez envoyer',
+        'processing': 'Opération en cours...',
         'disclaimer': '*Les touches de fonction ci-dessus ne sont disponibles que lorsque le Bluetooth est connecté et que la télécommande n\'est pas verrouillée.'
       },
       'de': {
@@ -467,6 +549,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'Sprache',
         'alertMessage': 'Gerätestatusfehler, Befehl wurde nicht erfolgreich ausgeführt. (0x66)',
         'sendtip': 'Bitte geben Sie den Text ein, den Sie senden möchten',
+        'processing': 'Operation läuft...',
         'disclaimer': '*Die oben genannten Funktionstasten sind nur verfügbar, wenn Bluetooth verbunden ist und die Fernbedienung nicht gesperrt ist.'
       },
       'pt': {
@@ -478,6 +561,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'Idioma',
         'alertMessage': 'Erro de status do dispositivo, comando não executado com sucesso. (0x66)',
         'sendtip': 'Por favor, digite o texto que deseja enviar',
+        'processing': 'Operação em andamento...',
         'disclaimer': '*As teclas de função acima estão disponíveis apenas quando o Bluetooth está conectado e o controle remoto não está bloqueado.'
       },
       'ja': {
@@ -489,6 +573,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': '言語',
         'alertMessage': 'デバイスの状態エラー、コマンドが正常に実行されませんでした。 (0x66)',
         'sendtip': '送信するテキストを入力してください',
+        'processing': '処理中...',
         'disclaimer': '*上記の機能キーは、Bluetoothが接続されており、リモートコントロールがロックされていない場合にのみ使用できます。'
       },
       'ru': {
@@ -500,6 +585,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'Язык',
         'alertMessage': 'Ошибка состояния устройства, команда не выполнена успешно. (0x66)',
         'sendtip': 'Пожалуйста, введите текст, который вы хотите отправить',
+        'processing': 'Операция выполняется...',
         'disclaimer': '*Вышеуказанные функциональные клавиши доступны только при подключенном Bluetooth и не заблокированном удаленном управлении.'
       },
       'it': {
@@ -511,6 +597,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'Lingua',
         'alertMessage': 'Errore di stato del dispositivo, comando non eseguito con successo. (0x66)',
         'sendtip': 'Inserisci il testo che desideri inviare',
+        'processing': 'Operazione in corso...',
         'disclaimer': '*I tasti funzione sopra indicati sono disponibili solo quando il Bluetooth è collegato e il controllo remoto non è bloccato.'
       },
       'nl': {
@@ -522,6 +609,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'Taal',
         'alertMessage': 'Apparaatstatusfout, opdracht niet succesvol uitgevoerd. (0x66)',
         'sendtip': 'Voer de tekst in die je wilt verzenden',
+        'processing': 'Verwerking bezig...',
         'disclaimer': '*De bovenstaande functietoetsen zijn alleen beschikbaar wanneer Bluetooth is verbonden en de afstandsbediening niet is vergrendeld.'
       },
       'ko': {
@@ -533,6 +621,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': '언어',
         'alertMessage': '장치 상태 오류, 명령이 성공적으로 실행되지 않았습니다. (0x66)',
         'sendtip': '전송하려는 텍스트를 입력하세요',
+        'processing': '진행 중...',
         'disclaimer': '*위의 기능 키는 블루투스가 연결되고 원격 제어가 잠기지 않은 경우에만 사용할 수 있습니다.',
       },
       'ar': {
@@ -544,6 +633,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         'selector_title': 'اللغة',
         'alertMessage': 'خطأ في حالة الجهاز، الأمر لم يتم تنفيذه بنجاح. (0x66)',
         'sendtip': 'الرجاء إدخال النص الذي ترغب في إرساله',
+        'processing': 'جاري التشغيل...',
         'disclaimer': '*المفاتيح الوظيفية المذكورة أعلاه متاحة فقط عند اتصال البلوتوث وعدم قفل التحكم عن بُعد.',
       }
       // 多语言翻译
