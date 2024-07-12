@@ -17,7 +17,7 @@ const int PASSWORD_LENGTH = 8;  // 定义 WiFi 密码的长度
 unsigned long buttonGPressStartTime = 0;      //L5输入G键按键开始时间
 unsigned long lastDisconnectTime = 0;     //记录最后一次BLE掉线的时间
 
-char version[] = "2.3.34";          //*************************版本信息*************************
+char version[] = "2.3.37";          //*************************版本信息*************************
 const char *ssid = "Remote control"; //*************************热点名称*************************
 const char *BLE_Address = "ecda3bd25a4a"; //*************************BLE地址*************************
 
@@ -116,16 +116,12 @@ const char index_html[] PROGMEM = R"rawliteral(
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       transition: background-color 0.3s, transform 0.3s;
     }
-    button:active {
-      background-color: #d8b86e;
-    }
     button:hover {
       background-color: #407e70;
-      transform: translateY(-2px);
     }
     button:active {
       background-color: #6bc0ae;
-      transform: translateY(0);
+      transform: translateY(2px);
     }
     .br-container {
       display: block;
@@ -200,6 +196,93 @@ const char index_html[] PROGMEM = R"rawliteral(
         transform: translateX(100%);
       }
     }
+    body.dark-mode {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+    body.dark-mode h1, body.dark-mode h4, body.dark-mode h5, body.dark-mode h6 {
+      color: #ffffff;
+    }
+    body.dark-mode .container {
+      background: #333;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    body.dark-mode button {
+      background-color: #d8b86e;
+    }
+    body.dark-mode button:hover {
+      background-color: #407e70;
+    }
+    body.dark-mode button:active {
+      background-color: #6bc0ae;
+    }
+    body.dark-mode .language-selector-container {
+      background-color: #444;
+      border: 1px solid #555;
+    }
+    body.dark-mode .language-selector {
+      background-color: #444;
+      color: #e0e0e0;
+      border: none;
+      box-shadow: none;
+    }
+    body.dark-mode .language-selector option {
+      background-color: #444;
+      color: #e0e0e0;
+    }
+    body.dark-mode input[type="text"], body.dark-mode input[type="password"], body.dark-mode textarea {
+      background-color: #444;
+      color: #e0e0e0;
+      border: 1px solid #555;
+    }
+    .dark-mode-toggle {
+      display: flex;
+      align-items: center;
+      position: relative;
+      font-size: 12px;
+      top: -5px;
+      left: 0;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 20px;
+      margin-right: 10px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 12px;
+      width: 12px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #6bc0ae;
+    }
+    input:checked + .slider:before {
+      transform: translateX(14px);
+    }
     .language-selector-container {
       position: absolute;
       top: 10px;
@@ -223,11 +306,18 @@ const char index_html[] PROGMEM = R"rawliteral(
     .language-selector:focus {
       outline: 2px solid #6bc0ae;
     }
-    .copyright {
-      margin-top: 30px; /* 调整版权声明距离上方内容的间距 */
+    .footer {
+      margin-top: 30px; /* 调整底部距离上方内容的间距 */
       font-size: 12px;
       color: #666;
       font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .copyright {
+      flex: 1; /* 让版权声明占据剩余的空间 */
+      text-align: center;
     }
     :focus {
       outline: 3px solid #6bc0ae; /* 示例的外边框颜色 */
@@ -237,10 +327,16 @@ const char index_html[] PROGMEM = R"rawliteral(
       body {
         background-color: #fff;
       }
+      body.dark-mode {
+        background-color: #333;
+      }
       h1 {
         font-size: calc(1.2rem + 1.2vw); /* 小屏幕下的字号调整 */
       }
       .container {
+        box-shadow: none;
+      }
+      body.dark-mode .container {
         box-shadow: none;
       }
       .grid-container {
@@ -262,11 +358,16 @@ const char index_html[] PROGMEM = R"rawliteral(
     @media (hover: none) {   /* 触摸设备的样式 */
       button:hover {
         background-color: #d8b86e;
-        transform: none;
       }
       button:active {
         background-color: #6bc0ae;
         transform: none;
+      }
+      body.dark-mode button:hover {
+        background-color: #d8b86e;
+      }
+      body.dark-mode button:active {
+        background-color: #6bc0ae;
       }
       .language-selector:focus {
         outline: none;
@@ -279,8 +380,15 @@ const char index_html[] PROGMEM = R"rawliteral(
 </head>
 <body>
   <div class="container">
+    <div class="dark-mode-toggle">
+      <label class="switch">
+        <input type="checkbox" id="darkmodeswitch" title="Toggle Dark Mode" aria-label="Toggle Dark Mode">
+        <span class="slider round"></span>
+      </label>
+      <span id="darkModeLabel">Dark Mode</span>
+    </div>
     <div class="language-selector-container">
-      <!-- 语言选择器 -->
+      <!-- Language selector -->
       <select id="languageSelect" class="language-selector" onchange="switchLanguage(this.value)" title="Language">
         <option value="en">English</option>
         <option value="es">Español</option>
@@ -350,8 +458,9 @@ const char index_html[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <div class="copyright">
-      Copyright&copy; 2020-<span id="currentYear"></span> ID_Inc. All rights reserved.
+    <div class="footer">
+      <span id="version">v0.0.0</span>
+      <span class="copyright">Copyright&copy; 2020-<span id="currentYear"></span> ID_Inc. All rights reserved.</span>
     </div>
   </div>
 
@@ -378,6 +487,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     }
 
     // 文本输入
+    var sendButton = document.getElementById('send');
     document.getElementById('send').addEventListener('click', function() {
       showOverlay(); // Show the overlay when sending the command
       var text = document.getElementById('textInput').value;
@@ -397,6 +507,9 @@ const char index_html[] PROGMEM = R"rawliteral(
           var counterElement = document.getElementById('charCount');
           counterElement.textContent = '0 / 200';
           counterElement.style.color = '#888';
+          sendButton.disabled = true;
+          sendButton.style.backgroundColor = '#ccc';
+          sendButton.style.transform = 'none';
         } else if (data === 'ERROR') {
           alert(translations[currentLanguage]['alertMessage']);
         }
@@ -437,8 +550,66 @@ const char index_html[] PROGMEM = R"rawliteral(
       } else {
           counterElement.style.color = '#888'; // 恢复为灰色
       }
+
+      // 启用或禁用发送按钮
+      var sendButton = document.getElementById('send');
+      if (currentLength === 0) {
+        sendButton.disabled = true;
+        sendButton.style.backgroundColor = '#ccc'; // 设置禁用状态下的按钮背景颜色
+        sendButton.style.transform = 'none'; // 禁用状态下设置transform为none
+      } else {
+        sendButton.disabled = false;
+        sendButton.style.backgroundColor = ''; // 恢复按钮的默认背景颜色
+        sendButton.style.transform = ''; // 恢复默认transform
+      }
     }
 
+    // 初始化页面时设置发送按钮状态
+    document.addEventListener('DOMContentLoaded', function() {
+        restrictInput(document.getElementById('textInput'));
+    });
+
+    // Function to enable dark mode
+    function enableDarkMode() {
+      document.body.classList.add('dark-mode');
+    }
+
+    // Function to disable dark mode
+    function disableDarkMode() {
+      document.body.classList.remove('dark-mode');
+    }
+
+    // Handle dark mode toggle
+    const darkmodeswitch = document.getElementById('darkmodeswitch');
+    darkmodeswitch.addEventListener('change', () => {
+      if (darkmodeswitch.checked) {
+        enableDarkMode();
+      } else {
+        disableDarkMode();
+      }
+    });
+
+    // Follow system preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      darkmodeswitch.checked = true;
+      enableDarkMode();
+    } else {
+      darkmodeswitch.checked = false;
+      disableDarkMode();
+    }
+
+    // Listen for changes in the system color scheme
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+      if (!localStorage.getItem('darkMode')) {
+        if (event.matches) {
+          enableDarkMode();
+          darkmodeswitch.checked = true;
+        } else {
+          disableDarkMode();
+          darkmodeswitch.checked = false;
+        }
+      }
+    });
 
     // 默认语言为英语
     let currentLanguage = 'en';
@@ -487,6 +658,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': '文本输入',
         'send': '发送',
         'selector_title': '语言',
+        'darkModeLabel': '深色模式',
+        'switch_drakmode': '切换深色模式',
         'alertMessage': '设备状态错误，命令未成功执行。 (0x66)',
         'sendtip': '请输入你要发送的文本',
         'processing': '操作进行中...',
@@ -499,6 +672,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': '文本輸入',
         'send': '發送',
         'selector_title': '語言',
+        'darkModeLabel': '深色模式',
+        'switch_drakmode': '切換深色模式',
         'alertMessage': '設備狀態錯誤，命令未成功執行。 (0x66)',
         'sendtip': '請輸入您要發送的文本',
         'processing': '操作進行中...',
@@ -511,10 +686,12 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'Text Input',
         'send': 'Send',
         'selector_title': 'Language',
+        'darkModeLabel': 'Dark Mode',
+        'switch_drakmode': 'Switch Dark Mode',
         'alertMessage': 'Device status error, command not executed successfully. (0x66)',
         'sendtip': 'Please enter the text you want to send',
         'processing': 'Operation in progress...',
-        'disclaimer': '*The above function are available only when Bluetooth is connected and remote control is not locked.'
+        'disclaimer': '*The above functions are available only when Bluetooth is connected and remote control is not locked.'
       },
       'es': {
         'title': 'Control remoto de Wifi',
@@ -523,6 +700,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'Entrada de texto',
         'send': 'Enviar',
         'selector_title': 'Idioma',
+        'darkModeLabel': 'Modo oscuro',
+        'switch_drakmode': 'Cambiar modo oscuro',
         'alertMessage': 'Error de estado del dispositivo, comando no ejecutado correctamente. (0x66)',
         'sendtip': 'Por favor, ingrese el texto que desea enviar',
         'processing': 'Operación en progreso...',
@@ -535,6 +714,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'Zone de texte',
         'send': 'Envoyer',
         'selector_title': 'Langue',
+        'darkModeLabel': 'Mode sombre',
+        'switch_drakmode': 'Changer de mode sombre',
         'alertMessage': 'Erreur d\'état du périphérique, commande non exécutée avec succès. (0x66)',
         'sendtip': 'Veuillez saisir le texte que vous souhaitez envoyer',
         'processing': 'Opération en cours...',
@@ -547,6 +728,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'Texteingabe',
         'send': 'Senden',
         'selector_title': 'Sprache',
+        'darkModeLabel': 'Dunkler Modus',
+        'switch_drakmode': 'Dunklen Modus umschalten',
         'alertMessage': 'Gerätestatusfehler, Befehl wurde nicht erfolgreich ausgeführt. (0x66)',
         'sendtip': 'Bitte geben Sie den Text ein, den Sie senden möchten',
         'processing': 'Operation läuft...',
@@ -559,6 +742,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'Entrada de texto',
         'send': 'Enviar',
         'selector_title': 'Idioma',
+        'darkModeLabel': 'Modo escuro',
+        'switch_drakmode': 'Alternar modo escuro',
         'alertMessage': 'Erro de status do dispositivo, comando não executado com sucesso. (0x66)',
         'sendtip': 'Por favor, digite o texto que deseja enviar',
         'processing': 'Operação em andamento...',
@@ -571,6 +756,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'テキスト入力',
         'send': '送信',
         'selector_title': '言語',
+        'darkModeLabel': 'ダークモード',
+        'switch_drakmode': 'ダークモードを切り替える',
         'alertMessage': 'デバイスの状態エラー、コマンドが正常に実行されませんでした。 (0x66)',
         'sendtip': '送信するテキストを入力してください',
         'processing': '処理中...',
@@ -583,6 +770,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'Текстовое поле',
         'send': 'Отправить',
         'selector_title': 'Язык',
+        'darkModeLabel': 'Темный режим',
+        'switch_drakmode': 'Переключить темный режим',
         'alertMessage': 'Ошибка состояния устройства, команда не выполнена успешно. (0x66)',
         'sendtip': 'Пожалуйста, введите текст, который вы хотите отправить',
         'processing': 'Операция выполняется...',
@@ -595,6 +784,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'Inserimento di testo',
         'send': 'Invia',
         'selector_title': 'Lingua',
+        'darkModeLabel': 'Modalità scura',
+        'switch_drakmode': 'Attiva modalità scura',
         'alertMessage': 'Errore di stato del dispositivo, comando non eseguito con successo. (0x66)',
         'sendtip': 'Inserisci il testo che desideri inviare',
         'processing': 'Operazione in corso...',
@@ -607,6 +798,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'Tekstinvoer',
         'send': 'Verzenden',
         'selector_title': 'Taal',
+        'darkModeLabel': 'Donkere modus',
+        'switch_drakmode': 'Donkere modus wisselen',
         'alertMessage': 'Apparaatstatusfout, opdracht niet succesvol uitgevoerd. (0x66)',
         'sendtip': 'Voer de tekst in die je wilt verzenden',
         'processing': 'Verwerking bezig...',
@@ -619,10 +812,12 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': '텍스트 입력',
         'send': '보내기',
         'selector_title': '언어',
+        'darkModeLabel': '다크 모드',
+        'switch_drakmode': '다크 모드 전환',
         'alertMessage': '장치 상태 오류, 명령이 성공적으로 실행되지 않았습니다. (0x66)',
         'sendtip': '전송하려는 텍스트를 입력하세요',
         'processing': '진행 중...',
-        'disclaimer': '*위의 기능 키는 블루투스가 연결되고 원격 제어가 잠기지 않은 경우에만 사용할 수 있습니다.',
+        'disclaimer': '*위의 기능 키는 블루투스가 연결되고 원격 제어가 잠기지 않은 경우에만 사용할 수 있습니다.'
       },
       'ar': {
         'title': 'التحكم عن بعد عبر Wifi',
@@ -631,10 +826,12 @@ const char index_html[] PROGMEM = R"rawliteral(
         'text-input': 'إدخال نص',
         'send': 'إرسال',
         'selector_title': 'اللغة',
+        'darkModeLabel': 'الوضع الداكن',
+        'switch_drakmode': 'تبديل الوضع الداكن',
         'alertMessage': 'خطأ في حالة الجهاز، الأمر لم يتم تنفيذه بنجاح. (0x66)',
         'sendtip': 'الرجاء إدخال النص الذي ترغب في إرساله',
         'processing': 'جاري التشغيل...',
-        'disclaimer': '*المفاتيح الوظيفية المذكورة أعلاه متاحة فقط عند اتصال البلوتوث وعدم قفل التحكم عن بُعد.',
+        'disclaimer': '*المفاتيح الوظيفية المذكورة أعلاه متاحة فقط عند اتصال البلوتوث وعدم قفل التحكم عن بُعد.'
       }
       // 多语言翻译
     };
@@ -657,10 +854,25 @@ const char index_html[] PROGMEM = R"rawliteral(
       if (languageSelect) {
         languageSelect.title = translations[currentLanguage]['selector_title'];
       }
+      // 更新 switch 的 title
+      const darkmodeswitch = document.getElementById('darkmodeswitch');
+      if (darkmodeswitch) {
+        darkmodeswitch.title = translations[currentLanguage]['switch_darkmode'];
+      }
     }
 
     // 更新版权年份
     document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+    // 请求版本信息
+    document.addEventListener('DOMContentLoaded', function () {
+      fetch('/version')
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById('version').textContent = data;
+        })
+        .catch(error => console.error('Error fetching version:', error));
+    });
 
     // 页面加载时初始化文本内容和标题
     updateTextContent();
@@ -724,7 +936,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     // 根据识别的语言代码切换网页语言
     switchLanguage(languageCode);
     document.querySelector('.language-selector').value = languageCode; // 更新下拉框选择
-      </script>
+  </script>
 </body>
 </html>
 )rawliteral";
@@ -1251,6 +1463,12 @@ void sendtextCommand_callback(AsyncWebServerRequest *request){
   }
 };
 
+void handleVersionRequest(AsyncWebServerRequest *request) {     // 发送版本信息
+    String versionResponse = "v";
+    versionResponse += version;
+    request->send(200, "text/plain", versionResponse);
+}
+
 void generateWifiPassword(){      // 生成随机 WiFi 密码的函数
   const char charset[] = "abcdefghijklmnopqrstuvwxyz0123456789";  // 字符集合，包含小写字母和数字
   int charsetSize = sizeof(charset) - 1;  // 获取字符集的长度
@@ -1281,6 +1499,7 @@ void Wifi_Control(int WifiC){     //Wifi控制
     server.on("/sendCommand", HTTP_GET, sendCommand_Callback); // 绑定按钮按下的处理函数
     server.on("/sendText", HTTP_POST, sendtextCommand_callback);
     server.on("/Up", HTTP_GET, Config_Callback);   // 绑定配置下发的处理函数
+    server.on("/version", HTTP_GET, handleVersionRequest);  // 版本信息配置
     server.begin();  // 初始化HTTP服务器
     IPAddress IP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
@@ -1484,7 +1703,7 @@ void Page_settings() {        //“设置”界面******************************
       case 3:         //固件版本
         LCD_Print("Version:");
         LCD_SetCursor(2, 1);
-        LCD_Print("V");
+        LCD_Print("v");
         LCD_Print(version);
         break;
       case 4:         //BLE地址
@@ -2354,7 +2573,7 @@ void setup() {
 
   Serial.begin(115200);
   Serial.println("Remote control");
-  Serial.print("V");
+  Serial.print("v");
   Serial.println(version);
 
   temp_sensor_config_t temp_sensor = {      //开始温度监控
@@ -2375,7 +2594,7 @@ void setup() {
   esp_task_wdt_reset();
   LCD_Clear();
 
-  LCD_Print("V");   //Screen 2
+  LCD_Print("v");   //Screen 2
   LCD_Print(version);
   A_loading();
   //*********启动屏结束*********
